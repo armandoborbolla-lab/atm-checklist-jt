@@ -263,10 +263,10 @@ tr:hover td{background:#fafafa}
     <div class="topbar-title" id="viewTitle">📊 Indicadores</div>
     <div class="topbar-right">
       <div class="period-tabs" id="periodTabs">
-        <button class="period-tab active" data-days="1"  onclick="setPeriod(this,1)">Hoy</button>
+        <button class="period-tab"        data-days="1"  onclick="setPeriod(this,1)">Hoy</button>
         <button class="period-tab"        data-days="7"  onclick="setPeriod(this,7)">7 días</button>
         <button class="period-tab"        data-days="30" onclick="setPeriod(this,30)">30 días</button>
-        <button class="period-tab"        data-days="0"  onclick="setPeriod(this,0)">Todo</button>
+        <button class="period-tab active" data-days="0"  onclick="setPeriod(this,0)">Todo</button>
         <button class="period-tab"        data-days="-1" onclick="setPeriod(this,-1)">Rango</button>
       </div>
       <button class="refresh-btn" onclick="loadAll()">↻ Actualizar</button>
@@ -444,7 +444,7 @@ if(FIREBASE_CONFIG){
 // ════════════════════════════════════════════
 let allData  = [];
 let filtered = [];
-let period   = 1;   // días; 0 = todo
+let period   = 0;   // días; 0 = todo
 let chartSec = null;
 let chartSup = null;
 
