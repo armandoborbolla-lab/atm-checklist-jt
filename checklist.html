@@ -383,9 +383,36 @@ const SUPERVISORES = [
   { val:'RICARDO ORTIZ LOPEZ',                  label:'Ricardo Ortiz López' },
 ];
 
-const HABITACIONES = [];
-for(let i=101;i<=199;i++) HABITACIONES.push(i);
-for(let i=201;i<=279;i++) HABITACIONES.push(i);
+const SUITES = new Set(['129','130','131','132','181','182','183','184']);
+const PLUS   = new Set(['101','102','103','104','105','106','107','108','109','110',
+  '111','112','113','114','117','118','119','142','143','144','145','146','147','148',
+  '149','150','151','152','153','154','155','156','157','158','159','160','161','162',
+  '163','164','165','166','167','168','169','170','171','172','173','174','175','176',
+  '177','178','179','180','199','252','253','254','255','278']);
+
+function getTipoHab(hab){
+  const h = String(hab);
+  if(SUITES.has(h)) return 'suite';
+  if(PLUS.has(h))   return 'plus';
+  return 'sencilla';
+}
+
+const HABITACIONES = [
+  101,102,103,104,105,106,107,108,109,110,111,112,113,114,117,118,119,
+  120,121,122,123,124,125,126,127,128,
+  129,130,131,132,
+  133,134,135,136,137,138,139,140,141,
+  142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,
+  159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,
+  176,177,178,179,180,
+  181,182,183,184,
+  186,187,188,189,190,191,192,193,194,195,196,197,198,
+  199,200,201,
+  214,215,217,218,219,222,223,224,
+  227,228,229,230,231,232,233,234,235,237,238,239,240,241,
+  244,245,246,247,249,250,251,252,253,254,255,256,
+  259,260,261,262,263,266,267,268,269,270,271,272,273,274,275,276,277,278,279
+];
 
 const SECCIONES = [
   {
@@ -490,6 +517,16 @@ let S = {
     hab.appendChild(o);
   });
 
+  // Auto-set tipo when room is selected
+  hab.addEventListener('change', function(){
+    if(!this.value) return;
+    const tipo = getTipoHab(this.value);
+    S.tipo = tipo;
+    document.querySelectorAll('.tipo-btn').forEach(b=>{
+      b.classList.toggle('active', b.dataset.tipo === tipo);
+    });
+  });
+
   // Clock
   tickClock();
   setInterval(tickClock, 30000);
@@ -590,10 +627,11 @@ function setTipo(btn){
 function startChecklist(){
   S.supervisor = document.getElementById('selSup').value;
   S.habitacion = document.getElementById('selHab').value;
-  if(!S.supervisor||!S.habitacion||!S.tipo){
-    showToast('⚠️ Completa supervisor, habitación y tipo');
+  if(!S.supervisor||!S.habitacion){
+    showToast('⚠️ Selecciona supervisor y habitación');
     return;
   }
+  if(!S.tipo) S.tipo = getTipoHab(S.habitacion);
   document.getElementById('header').style.display='block';
   document.getElementById('hSub').textContent =
     `Hab. ${S.habitacion} · ${capitalize(S.tipo)}`;
