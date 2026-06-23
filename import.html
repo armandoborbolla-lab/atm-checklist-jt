@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Importar Datos Históricos - ATM</title>
+<style>
+  body { font-family: sans-serif; max-width: 600px; margin: 60px auto; padding: 20px; background: #f5f5f5; }
+  h1 { color: #333; }
+  button { background: #1a73e8; color: #fff; border: none; padding: 14px 28px; font-size: 16px; border-radius: 8px; cursor: pointer; }
+  button:disabled { background: #aaa; cursor: not-allowed; }
+  #log { margin-top: 24px; background: #fff; border-radius: 8px; padding: 16px; font-size: 13px; font-family: monospace; max-height: 400px; overflow-y: auto; }
+  .ok { color: #188038; }
+  .err { color: #c5221f; }
+  progress { width: 100%; height: 12px; margin-top: 12px; }
+</style>
+</head>
+<body>
+<h1>Importar Datos Históricos</h1>
+<p>Este proceso importa <strong>53 registros</strong> históricos del Google Sheets a Firestore.</p>
+<p style="color:#c5221f;font-size:13px;">⚠ Ejecutar solo una vez. Si ya importaste, no vuelvas a hacer clic.</p>
+<button id="btn" onclick="startImport()">Importar 53 registros</button>
+<progress id="prog" value="0" max="53" style="display:none"></progress>
+<div id="log"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBdL7HTAlTEqRY0bAUW2u0hz5WPWhIgC4s",
+  authDomain: "atm-checklist-jt.firebaseapp.com",
+  projectId: "atm-checklist-jt",
+  storageBucket: "atm-checklist-jt.firebasestorage.app",
+  messagingSenderId: "439849642095",
+  appId: "1:439849642095:web:fdc7099bbdd2efd35c459a"
+};
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.firestore();
+
+// Columns (index): 0=fecha, 1=supervisor, 2=habitacion,
+// 3=e_puerta,4=e_chapa,5=e_cochera,6=e_cortina,7=e_cmt,
+// 8=c_sabanas,9=c_almohadas,10=c_cabecera,11=c_colcha,12=c_mobiliario,13=c_mesa,14=c_telefono,15=c_espejos,16=c_controles,17=c_cmt,
+// 18=b_inodoro,19=b_regadera,20=b_bote,21=b_cancel,22=b_papel,23=b_lavabo,24=b_piso,25=b_toallas,26=b_cmt,
+// 27=a_barra,28=a_liquido,29=a_shampoo,30=a_burbujas,31=a_preservativo,32=a_agua,33=a_cmt,
+// 34=l_kamasutra,35=l_piso,36=l_basura,37=l_ventanas,38=l_olor,39=l_paredes,40=l_espejos,41=l_cmt,
+// 42=t_tv,43=t_clima,44=obs,45=resultado
+const RAW = [
+["31/3/2026 20:27:57","NANCY LAZARO GONZALEZ","1","Cumple","Cumple","Cumple","Cumple","TODO BIEN","Cumple","Cumple","Cumple","No cumple","No cumple","Cumple","Cumple","Cumple","Cumple",":=","Cumple","Cumple","Cumple","Cumple","No cumple","No cumple","No cumple","No cumple","TODO BIEN","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","BIEN","No cumple","No cumple","No cumple","No cumple","No cumple","No cumple","No cumple","C","Cumple","Cumple","NADA","Habitación lista para venta"],
+["7/4/2026 12:00:45","DIANA LAURA HERRERA HERNANDEZ","1","Cumple","Cumple","No cumple","Cumple","Cortina de cochera en buen estado, con polvo. Cochera con grasa","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No cumple","Cumple","Se regresa camarista a limpiar espejos","Cumple","Cumple","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Se regresa a limpiar lavabo camarista","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Amenidades completas","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Hace falta limpieza profunda","Cumple","Cumple","Habitación no ocupa mantenimiento","Habitación lista para venta"],
+["8/4/2026 15:41:32","NORMA GUADALUPE TORRES ZAPATA","2","No cumple","Cumple","No cumple","Cumple","Cochera con grasa.","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No cumple","No cumple","No cumple","Cobertor perforado.","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Falta limpieza profunda en cancel","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Habitación plus","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No cumple","Kamasutra en mal estado","Cumple","Cumple","Limpieza profunda en regadera, paredes manchadas","Habitación lista para venta"],
+["8/4/2026 19:06:53","NORMA GUADALUPE TORRES ZAPATA","2","No cumple","Cumple","No cumple","No cumple","199. Cortina caída","No cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","No cuenta con controles. Pared con manchas","No cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Sarro en wc","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","No cuenta con burbujas es habitación plus.","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Detalles en paredes (manchas)","Cumple","Cumple","Pintura en la pared y la tapa del aire acondicionado está por caer","Habitación lista para venta"],
+["8/4/2026 19:17:59","NORMA GUADALUPE TORRES ZAPATA","2","No cumple","No cumple","No cumple","No cumple","La Chapa no cierra la puerta.","Cumple","Cumple","No cumple","No cumple","No cumple","Cumple","Cumple","No cumple","Cumple","Sabana con mancha, sin espejo en habitación.","Cumple","Cumple","Cumple","No cumple","No cumple","Cumple","Cumple","Cumple","Techo con hongo.","Cumple","Cumple","Cumple","No cumple","No cumple","No cumple","Habitación sencilla 198","No cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Habitación no cuenta con kamasutra.","Cumple","Cumple","Limpieza en wc para quitar sarro pegado.","Habitación lista para venta"],
+["10/4/2026 15:33:51","NORMA GUADALUPE TORRES ZAPATA","2","No cumple","Cumple","No cumple","No cumple","104 la puerta se atora al querer abrir.","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Todo bien, solo hay detalles de manchas en pared.","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Darle a detalle limpieza en cancel.","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple",".","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple",".","Cumple","Cumple","Todo funciona bien.","Habitación lista para venta"],
+["10/4/2026 15:41:17","NORMA GUADALUPE TORRES ZAPATA","2","No cumple","Cumple","No cumple","No cumple","Cochera con grasa y paredes sucias, puerta principal despintada. Hab 123","No cumple","Cumple","Cumple","No cumple","Cumple","Cumple","No cumple","No cumple","Cumple","Teléfono sin señal","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Cumple","Dar más a detalle limpieza de baño y regadera (piso con hongo). Lámpara de baño no prende por completo","Cumple","Cumple","Cumple","No cumple","No cumple","No cumple","Hab sencilla","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","No cumple","Pared manchada.","Cumple","No cumple","Se le comentó a mtto falla de aire acondicionado marca error","Requiere corrección por tema de mtto"],
+["10/4/2026 15:48:12","NORMA GUADALUPE TORRES ZAPATA","2","No cumple","Cumple","Cumple","No cumple",".","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Habitación 158 no cuenta con teléfono. Solo tiene 2 almohadas.","No cumple","Cumple","Cumple","No cumple","No cumple","Cumple","Cumple","Cumple","Cancel y azulejos con sarro.","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Habitación plus.","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple",".","Cumple","Cumple",".","Habitación lista para venta"],
+["11/4/2026 5:53:51","MARGOT HERNANDEZ RIOS","3","Cumple","Cumple","No cumple","No cumple","Hay habitaciones que ya requieren mantenimiento correctivo. Humedad y contactos safados","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Hay habitaciones que ya requieren mantenimiento correctivo. Humedad y contactos safados","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Hay habitaciones que ya requieren mantenimiento correctivo. Humedad y contactos safados","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Hay habitaciones que ya requieren mantenimiento correctivo. Humedad y contactos safados","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Hay habitaciones que ya requieren mantenimiento correctivo. Humedad y contactos safados","Cumple","Cumple","Hay habitaciones que ya requieren mantenimiento correctivo. Humedad y contactos safados","Habitación lista para venta"],
+["14/4/2026 0:11:42","NANCY LAZARO GONZALEZ","3","No cumple","No cumple","No cumple","Cumple","Las chapas están flojas","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Cumple","No cumple","No cumple","Aún hay detalles en cabecera y espejos","Cumple","No cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Detalles en rejilla y cancel","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Falta agua","No cumple","Cumple","Cumple","No cumple","Cumple","No cumple","No cumple","Kamasutra dañado","Cumple","Cumple","Las chapas de la puerta de la habitación y baño flojas","Habitación lista para venta"],
+["15/4/2026 10:24:37","NORMA GUADALUPE TORRES ZAPATA","2","No cumple","Cumple","No cumple","No cumple","161 Limpieza en puerta y cochera con grasa","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Falta detallar limpieza en controles y teléfono.","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Detalle en lavabo, roto la rejilla","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Habitación plus","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Kamasutra en mal estado. Tapizado","Cumple","Cumple","El control xview no prende.","Habitación lista para venta"],
+["15/4/2026 10:33:57","NORMA GUADALUPE TORRES ZAPATA","1","No cumple","Cumple","No cumple","No cumple","159 Limpieza en cortina y cochera con grasa.","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Teléfono sin señal.","Cumple","Cumple","Cumple","No cumple","No cumple","No cumple","Cumple","Cumple","Lavabo con cabello. Habitación para limpieza profunda.","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Habitación plus.","No cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Falta limpieza en kamasutra (detalle de tapiz) cortina sucia y paredes manchadas.","Cumple","Cumple","Hacer limpieza profunda en habitación, paredes con manchas, cortina sucia. Piso de la regadera con hongo y cancel sucio. El control de aire acondicionado no prende el clima.","Requiere corrección por tema de mtto"],
+["15/4/2026 10:59:09","NORMA GUADALUPE TORRES ZAPATA","1","No cumple","Cumple","No cumple","No cumple","164 Cortina con polvo. Chicles pegados en cochera y grasa.","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Control de clima sin tapa.","Cumple","Cumple","Cumple","No cumple","No cumple","No cumple","Cumple","Cumple","Baño completo para limpieza profunda.","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Habitación plus.","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Xview colgado, paredes manchadas cortina sucia, kamasutra tiene detalles en el tapiz.","Cumple","Cumple","Limpieza profunda.","Habitación lista para venta"],
+["15/4/2026 17:43:47","NANCY LAZARO GONZALEZ","161","No cumple","Cumple","Cumple","Cumple","Puerta sucia de las patas de abajo","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Fundas con manchas","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Muy bien","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple con no llevar burbujas","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Ventana con polvo","Cumple","Cumple","No hay","Habitación lista para venta"],
+["15/4/2026 17:56:15","NANCY LAZARO GONZALEZ","162","Cumple","Cumple","Cumple","Cumple","No hay","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Colcha con manchas cafés","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Cancel opaco","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No hay","No cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Kamasutra dañada","Cumple","Cumple","No hay","Habitación lista para venta"],
+["15/4/2026 18:54:32","NANCY LAZARO GONZALEZ","110","Cumple","Cumple","No cumple","Cumple","Cochera con agua","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Colcha perforada, control de clima quemado","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Poco rollo","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No hay","Cumple","Cumple","Cumple","Cumple","Cumple","No cumple","Cumple","Kamasutra dañada","Cumple","Cumple","No hay","Habitación lista para venta"],
+["15/4/2026 19:02:55","NANCY LAZARO GONZALEZ","111","No cumple","Cumple","No cumple","Cumple","Cochera con agua","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Colcha con manchas","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","No hay","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No hay","No cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Ventana con polvo","Cumple","Cumple","Puerta del baño dañada","Habitación lista para venta"],
+["15/4/2026 19:13:46","NANCY LAZARO GONZALEZ","196","No cumple","No cumple","Cumple","Cumple","No funciona la chapa de la puerta del baño","No cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Sillas dañadas","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","No cumple","Cumple","Solo 1 toalla. Piso mojado","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple con no tener burbujas, agua, preservativos","Cumple","Cumple","Cumple","No cumple","No cumple","Cumple","Cumple","Cumple con no terminar kamasutra. Habitación recién pintada","Cumple","Cumple","Chapa del baño","Habitación lista para venta"],
+["15/4/2026 19:44:46","NANCY LAZARO GONZALEZ","108","No cumple","Cumple","Cumple","Cumple","Puerta sucia de la parte de abajo","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Teléfono sin función (desconectado)","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","3 cabellos en el piso","Cumple","Cumple","Cumple","Cumple","No cumple","Cumple","Falta una maceta. No lleva burbujas. Falta preservativos","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Kamasutra dañada rota, ventana con polvo","Cumple","Cumple","Falta 1 maceta, dispensador de aromas le falta tapa","Habitación lista para venta"],
+["16/4/2026 11:19:17","NORMA GUADALUPE TORRES ZAPATA","173","No cumple","Cumple","No cumple","No cumple","Cochera sucia.","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","No cumple","No cumple","Cumple","Polvo en cabecera.","No cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Baño limpio pero con sarro en la orilla.","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Habitación plus.","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Tapiz de kamasutra en mal estado.","Cumple","Cumple","Solo limpieza profunda.","Habitación lista para venta"],
+["16/4/2026 12:18:55","NORMA GUADALUPE TORRES ZAPATA","175","No cumple","Cumple","No cumple","No cumple","Cortina caída de un gancho. Cochera sucia.","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Cumple","Cabecera y mesitas de noche tienen polvo","Cumple","Cumple","Cumple","No cumple","No cumple","Cumple","Cumple","Cumple","Lavabo con detalle en rejilla (quemadura por cigarro). Cancel lavar a detalle y papel higiénico a la mitad","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Habitación plus","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Paredes manchadas y kamasutra con detalle en tapiz.","Cumple","Cumple","Cortina","Habitación lista para venta"],
+["16/4/2026 18:57:06","NANCY LAZARO GONZALEZ","169","No cumple","Cumple","Cumple","No cumple","Cortina rota","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No hay","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Cancel opaco","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","La habitación no lleva burbujas","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Ventana con polvo","Cumple","Cumple","Checar cortina","Habitación lista para venta"],
+["16/4/2026 19:01:51","NANCY LAZARO GONZALEZ","170","No cumple","Cumple","No cumple","No cumple","Cochera con basura","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Faltó limpieza al teléfono","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Cancel opaco","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No incluye burbujas","No cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Kamasutra con manchas","Cumple","Cumple","No hay","Habitación lista para venta"],
+["16/4/2026 19:07:54","NANCY LAZARO GONZALEZ","171","No cumple","Cumple","No cumple","No cumple","Puerta con polvo","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No cumple","No cumple","Cumple","Faltó limpiar espejos de enfrente de la cama","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Piso de la regadera con humedad","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Habitación no lleva burbujas","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Kamasutra con manchas","Cumple","Cumple","No hay","Habitación lista para venta"],
+["17/4/2026 2:26:32","RICARDO ORTIZ LOPEZ","112","Cumple","Cumple","No cumple","Cumple","Manchas de aceite en la cochera","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cabecera con polvo","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Corregir cantidad de toallas: 1 en sencilla, 2 en plus","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","No aplica jabón burbuja","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Sin comentarios","Cumple","Cumple","Sin observaciones","Habitación lista para venta"],
+["17/4/2026 2:35:41","RICARDO ORTIZ LOPEZ","165","Cumple","Cumple","No cumple","Cumple","Manchas de aceite en cochera","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Polvo en cabecera","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Corregir cantidad de toallas: 1 sencilla y 2 suite","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","No aplica jabón burbuja","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Sin comentarios","Cumple","Cumple","Sin observaciones para mantenimiento","Habitación lista para venta"],
+["17/4/2026 9:08:21","MARGOT HERNANDEZ RIOS","109","Cumple","Cumple","No cumple","No cumple","Falta limpiar cochera","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Si cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Si cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No cumple","Faltaba agua","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Limpia","Cumple","Cumple","Tiene detalles por humedad","Requiere corrección por tema de mtto"],
+["20/4/2026 8:22:58","NORMA GUADALUPE TORRES ZAPATA","103","No cumple","Cumple","No cumple","No cumple","Cortina sucia, piso con grasa y basura. Puerta se atora al abrir.","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No cumple","Detalles en tapizado del kamasutra. Está en mal estado.","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Limpieza en cancel","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","habitación plus.","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple",".","Cumple","Cumple","Solo la limpieza del cancel.","Habitación lista para venta"],
+["20/4/2026 8:30:47","NORMA GUADALUPE TORRES ZAPATA","104","No cumple","Cumple","No cumple","No cumple","Cortina con polvo, cochera con chicles pegados. Paredes manchadas y pintura caída.","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No cumple","Cabecera con polvo.","Cumple","Cumple","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Limpieza en monomando (lavabo) y sarro en wc por dentro.","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Habitación plus.","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Limpiar a detalle paredes.","Cumple","Cumple","Revisión de puerta principal. Ya que se atora al abrir. No es detalle de la chapa.","Habitación lista para venta"],
+["20/4/2026 8:37:17","NORMA GUADALUPE TORRES ZAPATA","106","No cumple","Cumple","No cumple","No cumple","Cochera con chicles pegados y basurita, paredes con manchas","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No cumple","Cabecera con polvo.","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Espejo con manchas y no enciende las luces.","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Habitación plus.","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Kamasutra con detalle en tapiz.","Cumple","Cumple","El control de xview no sube ni baja el volumen.","Habitación lista para venta"],
+["20/4/2026 10:30:22","NORMA GUADALUPE TORRES ZAPATA","161","No cumple","Cumple","No cumple","No cumple","Cochera con chicles pegados.","No cumple","Cumple","No cumple","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Colcha con manchitas dispersas de cloro. Cabecera con polvo.","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Lavabo con rejilla rota.","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Habitación plus.","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Paredes con manchas y kamasutra con detalle en tapizado.","Cumple","Cumple","Tapizado de kamasutra en mal estado.","Habitación lista para venta"],
+["20/4/2026 10:37:41","NORMA GUADALUPE TORRES ZAPATA","162","No cumple","Cumple","No cumple","No cumple","Chicles pegados en piso de cochera. Paredes con manchas.","No cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cabecera con polvo, colcha con una perforación por cigarrillo.","Cumple","Cumple","Cumple","No cumple","No cumple","Cumple","Cumple","Cumple","Limpieza a detalle al cancel.","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Habitación plus.","No cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Kamasutra con manchas, tapizado en mal estado.","Cumple","Cumple",".","Habitación lista para venta"],
+["20/4/2026 10:43:20","NORMA GUADALUPE TORRES ZAPATA","163","No cumple","Cumple","No cumple","No cumple","Cochera con basurita y chicles pegados.","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cabecera con polvo.","Cumple","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Pared junto a la secadora con detalle de humedad, la pintura se está cayendo.","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Habitación plus.","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Paredes con manchas.","Cumple","Cumple","La pared con humedad","Requiere corrección por tema de mtto"],
+["20/4/2026 16:28:45","NANCY LAZARO GONZALEZ","180","No cumple","Cumple","No cumple","No cumple","Puerta con pestañas","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","No cumple","Cumple","Espejos sucios. Cabecera con polvo. Colcha con manchas","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Cancel opaco","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","No hay","No cumple","No cumple","Cumple","No cumple","Cumple","No cumple","No cumple","Piso con cabello. Kamasutra dañada","Cumple","Cumple","Cortina vieja, sucia, rota","Habitación lista para venta"],
+["20/4/2026 16:37:58","NANCY LAZARO GONZALEZ","179","No cumple","Cumple","No cumple","No cumple","Cochera sucia por grasa","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","No cumple","Cumple","Espejos sucios","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Cancel opaco","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","No hay","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Ventana con polvo. Kamasutra con manchas","Cumple","Cumple","No hay","Habitación lista para venta"],
+["20/4/2026 16:45:29","NANCY LAZARO GONZALEZ","177","No cumple","Cumple","No cumple","No cumple","Cortina caída","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No cumple","No cumple","Cumple","Espejo sucio","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Cumple","Lavabo con jabón","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","No hay","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Ventana con polvo","Cumple","Cumple","Dispensador de aromas","Habitación lista para venta"],
+["20/4/2026 16:50:58","NANCY LAZARO GONZALEZ","176","No cumple","Cumple","Cumple","No cumple","Cortina sucia. Puerta sucia de la parte de abajo","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Colcha perforada","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Cancel sucio","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","No hay","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Ventana con polvo","Cumple","Cumple","Falta una maceta. Dispensador de aromas","Habitación lista para venta"],
+["20/4/2026 16:58:32","NANCY LAZARO GONZALEZ","175","No cumple","Cumple","No cumple","No cumple","Cortina vieja, sucia, fea, rota. Cochera sucia","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Teléfono con polvo","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","No cumple","Cumple","Pocos cabellos en el baño. Cancel sucio","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","No hay","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Kamasutra dañado","No cumple","Cumple","Control de tv no sube volumen","Habitación lista para venta"],
+["20/4/2026 17:07:20","NANCY LAZARO GONZALEZ","174","No cumple","Cumple","No cumple","No cumple","Cortina vieja, sucia y rota","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No hay","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","No cumple","Cumple","Cancel sucio","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","No hay","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","No cumple","Kamasutra dañada","Cumple","Cumple","No hay","Habitación lista para venta"],
+["20/4/2026 17:14:47","NANCY LAZARO GONZALEZ","173","No cumple","Cumple","No cumple","No cumple","Cortina sucia rota","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No hay","Cumple","-","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Cancel sucio","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","No hay","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Ventana con polvo","Cumple","Cumple","Techo de lavabo con humedad","Habitación lista para venta"],
+["20/4/2026 17:23:28","NANCY LAZARO GONZALEZ","172","No cumple","Cumple","No cumple","No cumple","Cortina sucia","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Teléfono con polvo. Fundas perforadas","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Cancel sucio","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","No hay","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Ventana con polvo","Cumple","Cumple","No hay","Habitación lista para venta"],
+["20/4/2026 17:31:05","NANCY LAZARO GONZALEZ","171","No cumple","Cumple","No cumple","No cumple","Cortina muy sucia. Cochera con grasa","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No hay","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Cancel sucio","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","No hay","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Paredes ralladas con pluma","Cumple","Cumple","Dispensador de aromas","Habitación lista para venta"],
+["21/4/2026 13:13:14","NORMA GUADALUPE TORRES ZAPATA","110","No cumple","Cumple","No cumple","No cumple","Cortina con polvo, cochera con grasa.","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","No cumple","Cumple","Espejo con manchas, cabecera con polvo y colcha con perforación por cigarrillo.","Cumple","Cumple","Cumple","No cumple","No cumple","Cumple","Cumple","Cumple","Darle limpieza a detalle del cancel, baño sin papel higiénico.","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Habitación plus.","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","No cumple","Espejo con mancha, kamasutra tapiz en mal estado.","Cumple","Cumple",".","Habitación lista para venta"],
+["21/4/2026 16:08:52","NANCY LAZARO GONZALEZ","106","No cumple","Cumple","Cumple","No cumple","Cortina sucia","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Colcha con manchas","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Muy bien","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","No hay","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No hay","Cumple","Cumple","No hay","Habitación lista para venta"],
+["21/4/2026 16:15:22","NANCY LAZARO GONZALEZ","107","No cumple","Cumple","No cumple","No cumple","Cortina sucia","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No cumple","Cumple","Espejos sucios","Cumple","No cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Cumple","Regadera aún con agua en el piso y paredes. Lavabo aún mojado","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Falta botella de agua","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Kamasutra dañada","Cumple","Cumple","Le hace falta una maceta","Habitación lista para venta"],
+["21/4/2026 16:24:02","NANCY LAZARO GONZALEZ","108","No cumple","Cumple","No cumple","No cumple","Cortina sucia. Cochera con colillas de cigarro","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No cumple","No cumple","Cumple","Espejos sucios","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No cumple","Cumple","Con cabellos en el piso","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","No hay","Cumple","No cumple","Cumple","No cumple","Cumple","No cumple","No cumple","Piso con muchos cabellos. Kamasutra dañado","Cumple","Cumple","Falta una maceta","Habitación lista para venta"],
+["21/4/2026 17:10:18","NANCY LAZARO GONZALEZ","104","Cumple","Cumple","Cumple","No cumple","Cortina sucia","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No cumple","Cumple","Espejos sucios","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No cumple","Cumple","Piso mojado aún","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","No hay","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No cumple","Espejos manchados","Cumple","Cumple","Techo del baño y regadera con hongos","Requiere corrección por tema de mtto"],
+["21/4/2026 18:01:09","NANCY LAZARO GONZALEZ","166","No cumple","Cumple","No cumple","No cumple","Cortina sucia rota","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","No hay","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Cancel sucio","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","No hay","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Ventana con polvo","Cumple","Cumple","No hay","Habitación lista para venta"],
+["22/4/2026 7:24:34","NORMA GUADALUPE TORRES ZAPATA","160","No cumple","Cumple","No cumple","No cumple","Cortina con polvo, cochera con basurita.","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Colcha con perforación de cigarrillo","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Cumple","Lavabo con agua.","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Habitación plus.","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Paredes con manchas y kamasutra tapizado en mal estado.","Cumple","Cumple",".","Habitación lista para venta"],
+["22/4/2026 8:09:47","NORMA GUADALUPE TORRES ZAPATA","112","No cumple","Cumple","No cumple","No cumple","Cochera con basura.","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","No cumple","Cumple","Cabecera con polvo","Cumple","Cumple","No cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Bote sin bolsa de basura y limpiar a detalle cancel, espejo del lavabo con salpicaduras.","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Habitación plus.","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple",".","Cumple","Cumple",".","Habitación lista para venta"],
+["22/4/2026 9:11:13","NORMA GUADALUPE TORRES ZAPATA","173","No cumple","Cumple","No cumple","No cumple","Cortina con polvo, chicles pegados en cochera y cortina caída","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple",".","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Dar a detalle limpieza en cancel y wc","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Plus","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Pared que está por la mesita se encuentra rayada.","Cumple","Cumple","Pintura en rayón y detalle de la cortina","Requiere corrección por tema de mtto"],
+["22/4/2026 9:17:31","NORMA GUADALUPE TORRES ZAPATA","174","No cumple","Cumple","No cumple","No cumple","Cortina con polvo, cochera con chicles pegados.","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Cumple","Solo cabecera con polvo","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Cumple","Limpieza a detalle de baño completo, principios de sarro en wc y lavabo con manchitas.","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Habitación plus.","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Paredes manchadas, kamasutra tapiz en mal estado.","Cumple","Cumple","Corrección de cortina.","Habitación lista para venta"],
+["22/4/2026 12:03:56","NORMA GUADALUPE TORRES ZAPATA","180","No cumple","Cumple","Cumple","No cumple","Cortina caída y con polvo","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Colcha con manchitas dispersas de cloro.","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Cumple","Cumple","Limpiar a detalle cancel y WC por inicio de sarro.","Cumple","Cumple","Cumple","No cumple","Cumple","Cumple","Habitación plus.","Cumple","Cumple","Cumple","No cumple","Cumple","No cumple","Cumple","Paredes manchadas","Cumple","Cumple","Solo detalle de la cortina","Habitación lista para venta"]
+];
+
+const FIELDS = [
+  "created_at","supervisor","habitacion",
+  "entrada_puerta","entrada_chapa","entrada_cochera","entrada_cortina","entrada_cmt",
+  "cama_sabanas","cama_almohadas","cama_cabecera","cama_colcha","cama_mobiliario",
+  "cama_mesa","cama_telefono","cama_espejos","cama_controles","cama_cmt",
+  "bano_inodoro","bano_regadera","bano_bote","bano_cancel","bano_papel",
+  "bano_lavabo","bano_piso","bano_toallas","bano_cmt",
+  "am_jabon_barra","am_jabon_liquido","am_shampoo","am_burbujas","am_preservativo","am_agua","am_cmt",
+  "lim_kamasutra","lim_piso","lim_basura","lim_ventanas","lim_olor","lim_paredes","lim_espejos","lim_cmt",
+  "tec_tv","tec_clima","obs_mtto","resultado"
+];
+
+const CHECK_COLS = [3,4,5,6,8,9,10,11,12,13,14,15,16,
+  18,19,20,21,22,23,24,25,27,28,29,30,31,32,
+  34,35,36,37,38,39,40,42,43];
+const CMT_COLS  = [7,17,26,33,41,44];
+
+function parseDate(s) {
+  const [datePart, timePart] = s.split(' ');
+  const [d, m, y] = datePart.split('/');
+  const [h, min, sec] = timePart.split(':');
+  return new Date(+y, +m - 1, +d, +h, +min, +sec);
+}
+
+function mapCheck(v) {
+  if (v === 'Cumple') return 'cumple';
+  if (v === 'No cumple') return 'no_cumple';
+  return null;
+}
+
+function mapCmt(v) {
+  const t = (v || '').trim();
+  if (!t || t === '.' || t === ':=' || t === '-') return null;
+  return t;
+}
+
+function inferTipo(row) {
+  const amCmt = (row[33] || '').toLowerCase();
+  if (amCmt.includes('suite')) return 'suite';
+  if (amCmt.includes('plus') || amCmt.includes('sencilla')) {
+    return amCmt.includes('sencilla') ? 'sencilla' : 'plus';
+  }
+  // Check all comment fields
+  const allText = [row[7],row[17],row[26],row[33],row[41],row[44]].join(' ').toLowerCase();
+  if (/\bsuite\b/.test(allText)) return 'suite';
+  if (/\bplus\b/.test(allText)) return 'plus';
+  if (/\bsencilla\b/.test(allText)) return 'sencilla';
+  // Infer from burbujas/preservativo
+  if (row[30] === 'Cumple') return 'suite';
+  if (row[31] === 'Cumple') return 'plus';
+  return 'sencilla';
+}
+
+function rowToDoc(row) {
+  const doc = {};
+  doc.created_at = firebase.firestore.Timestamp.fromDate(parseDate(row[0]));
+  doc.supervisor = row[1];
+  doc.habitacion = row[2];
+  doc.tipo_habitacion = inferTipo(row);
+
+  CHECK_COLS.forEach(i => {
+    doc[FIELDS[i + 1]] = mapCheck(row[i]); // offset +1 because FIELDS[0]=created_at
+  });
+  CMT_COLS.forEach(i => {
+    doc[FIELDS[i + 1]] = mapCmt(row[i]);
+  });
+  doc.resultado = row[45];
+  return doc;
+}
+
+// Fix FIELDS offset: FIELDS array starts at created_at (index 0), but row[] starts at fecha (index 0).
+// RAW row indices: 0=fecha,1=supervisor,2=habitacion,3..45=fields
+// FIELDS array:    0=created_at,1=supervisor,2=habitacion,3..45=fields
+// So FIELDS[i+1] is wrong for check/cmt cols — let's use direct mapping instead:
+const FIELD_MAP = {
+  3:"entrada_puerta",4:"entrada_chapa",5:"entrada_cochera",6:"entrada_cortina",7:"entrada_cmt",
+  8:"cama_sabanas",9:"cama_almohadas",10:"cama_cabecera",11:"cama_colcha",12:"cama_mobiliario",
+  13:"cama_mesa",14:"cama_telefono",15:"cama_espejos",16:"cama_controles",17:"cama_cmt",
+  18:"bano_inodoro",19:"bano_regadera",20:"bano_bote",21:"bano_cancel",22:"bano_papel",
+  23:"bano_lavabo",24:"bano_piso",25:"bano_toallas",26:"bano_cmt",
+  27:"am_jabon_barra",28:"am_jabon_liquido",29:"am_shampoo",30:"am_burbujas",31:"am_preservativo",32:"am_agua",33:"am_cmt",
+  34:"lim_kamasutra",35:"lim_piso",36:"lim_basura",37:"lim_ventanas",38:"lim_olor",39:"lim_paredes",40:"lim_espejos",41:"lim_cmt",
+  42:"tec_tv",43:"tec_clima",44:"obs_mtto",45:"resultado"
+};
+
+function rowToDocFixed(row) {
+  const doc = {};
+  doc.created_at = firebase.firestore.Timestamp.fromDate(parseDate(row[0]));
+  doc.supervisor  = row[1];
+  doc.habitacion  = row[2];
+  doc.tipo_habitacion = inferTipo(row);
+
+  CHECK_COLS.forEach(i => { doc[FIELD_MAP[i]] = mapCheck(row[i]); });
+  CMT_COLS.forEach(i  => { doc[FIELD_MAP[i]] = mapCmt(row[i]); });
+  doc.resultado = row[45];
+  return doc;
+}
+
+function log(msg, cls) {
+  const el = document.getElementById('log');
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+async function startImport() {
+  const btn = document.getElementById('btn');
+  const prog = document.getElementById('prog');
+  btn.disabled = true;
+  prog.style.display = 'block';
+  document.getElementById('log').innerHTML = '';
+  log('Iniciando importación de ' + RAW.length + ' registros...');
+
+  let ok = 0, fail = 0;
+  for (let i = 0; i < RAW.length; i++) {
+    try {
+      const doc = rowToDocFixed(RAW[i]);
+      await db.collection('revisiones').add(doc);
+      ok++;
+      log(`✓ [${i+1}/${RAW.length}] ${RAW[i][0]} — ${RAW[i][1]} — Hab ${RAW[i][2]}`, 'ok');
+    } catch (e) {
+      fail++;
+      log(`✗ [${i+1}] Error: ${e.message}`, 'err');
+    }
+    prog.value = i + 1;
+  }
+  log(`\nCompletado: ${ok} importados, ${fail} errores.`, ok === RAW.length ? 'ok' : 'err');
+  btn.textContent = 'Importación completa';
+}
+</script>
+</body>
+</html>
