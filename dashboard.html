@@ -394,20 +394,10 @@ tr:hover td{background:#fafafa}
 
           <div style="margin-top:18px;padding-top:18px;border-top:1px solid #f3f4f6">
             <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:12px">Agregar usuario</div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
-              <div style="flex:1;min-width:200px">
-                <label style="font-size:11px;color:var(--gray);display:block;margin-bottom:4px;font-weight:600">NOMBRE COMPLETO</label>
-                <input type="text" id="newSupNombre" class="filter-sel" style="width:100%;padding:10px 12px"
-                  placeholder="Ej: María García López" onkeydown="if(event.key==='Enter')addSupervisor()">
-              </div>
-              <div style="min-width:160px">
-                <label style="font-size:11px;color:var(--gray);display:block;margin-bottom:4px;font-weight:600">ROL</label>
-                <select id="newSupRol" class="filter-sel" style="width:100%;padding:10px 12px">
-                  <option value="supervisor">Supervisor</option>
-                  <option value="jefe_turno">Jefe de turno</option>
-                </select>
-              </div>
-              <button class="refresh-btn" onclick="addSupervisor()" style="padding:10px 18px">+ Agregar</button>
+            <div style="display:flex;gap:8px;align-items:flex-end">
+              <input type="text" id="newSupNombre" class="filter-sel" style="flex:1;padding:10px 12px"
+                placeholder="Nombre completo…" onkeydown="if(event.key==='Enter')addSupervisor()">
+              <button class="refresh-btn" onclick="addSupervisor()" style="padding:10px 18px;flex-shrink:0">+ Agregar</button>
             </div>
           </div>
         </div>
@@ -1021,19 +1011,13 @@ function renderSupList(){
     return;
   }
   el.innerHTML = supervisoresData.map((s,i)=>{
-    const inicial = (s.nombre||'?')[0].toUpperCase();
-    const esJefe  = s.rol==='jefe_turno';
-    const rolLbl  = esJefe ? 'Jefe de turno' : 'Supervisor';
-    const rolStyle= esJefe ? 'background:#ede9fe;color:#6d28d9' : 'background:#dbeafe;color:#1d4ed8';
-    const nombreSafe = (s.nombre||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const inicial   = (s.nombre||'?')[0].toUpperCase();
+    const nombreSafe= (s.nombre||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     return `
       <div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #f3f4f6">
         <div style="width:36px;height:36px;border-radius:50%;background:var(--navy);color:#fff;
           display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0">${inicial}</div>
-        <div style="flex:1">
-          <div style="font-size:14px;font-weight:600;color:#1f2937">${nombreSafe}</div>
-        </div>
-        <span class="badge" style="${rolStyle}">${rolLbl}</span>
+        <div style="flex:1;font-size:14px;font-weight:600;color:#1f2937">${nombreSafe}</div>
         <button data-idx="${i}"
           style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:18px;padding:4px 8px;border-radius:6px"
           title="Eliminar" onclick="deleteSupervisorByIdx(this.dataset.idx)">🗑️</button>
@@ -1043,14 +1027,11 @@ function renderSupList(){
 
 async function addSupervisor(){
   const nombre = document.getElementById('newSupNombre').value.trim();
-  const rol    = document.getElementById('newSupRol').value;
   if(!nombre){ showToast('⚠️ Escribe el nombre del usuario'); return; }
   if(!db){ showToast('❌ Sin conexión'); return; }
   try{
     await db.collection('supervisores').add({
       nombre: nombre.toUpperCase(),
-      display: nombre,
-      rol,
       activo: true,
       creado: firebase.firestore.Timestamp.now()
     });
