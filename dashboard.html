@@ -334,9 +334,15 @@ tr:hover td{background:#fafafa}
           <div class="chart-wrap"><canvas id="chartSecciones"></canvas></div>
         </div>
         <div class="chart-card">
-          <div class="chart-title">👤 Revisiones por supervisor</div>
+          <div class="chart-title">📊 Actividad por supervisor</div>
           <div class="chart-wrap"><canvas id="chartSupervisores"></canvas></div>
         </div>
+      </div>
+
+      <!-- Tendencia semanal (full width) -->
+      <div class="chart-card" style="margin-bottom:24px">
+        <div class="chart-title">📈 Tendencia semanal de cumplimiento</div>
+        <div class="chart-wrap" style="height:200px"><canvas id="chartTendencia"></canvas></div>
       </div>
 
       <!-- Bottom panels -->
@@ -346,8 +352,8 @@ tr:hover td{background:#fafafa}
           <div id="topIssues"></div>
         </div>
         <div class="panel">
-          <div class="panel-title">👥 Cumplimiento por supervisor</div>
-          <div id="supCompliance"></div>
+          <div class="panel-title">🏚️ Habitaciones problemáticas</div>
+          <div id="habProblemas"></div>
         </div>
       </div>
     </div>
@@ -445,8 +451,9 @@ if(FIREBASE_CONFIG){
 let allData  = [];
 let filtered = [];
 let period   = 0;   // días; 0 = todo
-let chartSec = null;
-let chartSup = null;
+let chartSec  = null;
+let chartSup  = null;
+let chartTend = null;
 
 const ITEMS = {
   'entrada_puerta':'Puerta limpia','entrada_chapa':'Chapa funcionando',
@@ -530,7 +537,7 @@ async function loadAll(){
     renderKPIs();
     renderCharts();
     renderIssues();
-    renderSupCompliance();
+    renderHabProblemas();
     renderBitacora();
     populateFilters();
     showToast(allData.length===0
@@ -579,6 +586,7 @@ function renderKPIs(){
 function renderCharts(){
   renderChartSecciones();
   renderChartSupervisores();
+  renderTendencia();
 }
 
 function renderChartSecciones(){
@@ -618,20 +626,97 @@ function renderChartSupervisores(){
     const name=shortName(r.supervisor);
     counts[name]=(counts[name]||0)+1;
   });
-  const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
 
   if(chartSup) chartSup.destroy();
   chartSup=new Chart(document.getElementById('chartSupervisores').getContext('2d'),{
-    type:'doughnut',
+    type:'bar',
     data:{
       labels:sorted.map(s=>s[0]),
-      datasets:[{data:sorted.map(s=>s[1]),backgroundColor:['#0f2f5e','#1a4a8a','#d4a017','#16a34a','#dc2626','#7c3aed'],borderWidth:0,hoverOffset:6}]
+      datasets:[{
+        data:sorted.map(s=>s[1]),
+        backgroundColor:'rgba(15,47,94,0.8)',
+        borderRadius:6,borderSkipped:false
+      }]
     },
     options:{
+      indexAxis:'y',
       responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:12}}}
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw+' revisiones'}}},
+      scales:{
+        x:{grid:{color:'#f3f4f6'},ticks:{stepSize:20}},
+        y:{grid:{display:false},ticks:{font:{size:12}}}
+      }
     }
   });
+}
+
+function renderTendencia(){
+  // Group by week (Monday as start)
+  const weeks={};
+  allData.forEach(r=>{
+    const d=new Date(r.created_at);
+    const day=d.getDay()||7;
+    const mon=new Date(d); mon.setDate(d.getDate()-(day-1)); mon.setHours(0,0,0,0);
+    const key=mon.toISOString().slice(0,10);
+    if(!weeks[key]) weeks[key]={ok:0,total:0};
+    Object.keys(ITEMS).forEach(k=>{
+      const v=r[k];
+      if(v==='cumple'||v==='no_cumple'){weeks[key].total++;if(v==='cumple')weeks[key].ok++;}
+    });
+  });
+
+  const sorted=Object.entries(weeks).sort((a,b)=>a[0].localeCompare(b[0]));
+  const labels=sorted.map(([w])=>{
+    const d=new Date(w+'T12:00:00');
+    return d.getDate()+'/'+(d.getMonth()+1);
+  });
+  const pcts=sorted.map(([,v])=>v.total>0?Math.round(v.ok/v.total*100):null);
+
+  if(chartTend) chartTend.destroy();
+  chartTend=new Chart(document.getElementById('chartTendencia').getContext('2d'),{
+    type:'line',
+    data:{labels,datasets:[{
+      label:'Cumplimiento %',data:pcts,
+      borderColor:'#0f2f5e',backgroundColor:'rgba(15,47,94,0.08)',
+      tension:0.4,fill:true,pointBackgroundColor:'#0f2f5e',
+      pointRadius:4,pointHoverRadius:6,spanGaps:true
+    }]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw+'%'}}},
+      scales:{
+        y:{min:50,max:100,ticks:{callback:v=>v+'%'},grid:{color:'#f3f4f6'}},
+        x:{grid:{display:false},ticks:{font:{size:11}}}
+      }
+    }
+  });
+}
+
+function renderHabProblemas(){
+  const habFails={};
+  allData.forEach(r=>{
+    const h=String(r.habitacion||'?');
+    if(!habFails[h]) habFails[h]={fails:0,total:0};
+    Object.keys(ITEMS).forEach(k=>{
+      const v=r[k];
+      if(v==='cumple'||v==='no_cumple'){habFails[h].total++;if(v==='no_cumple')habFails[h].fails++;}
+    });
+  });
+
+  const sorted=Object.entries(habFails)
+    .map(([hab,s])=>({hab,fails:s.fails,pct:s.total>0?Math.round(s.fails/s.total*100):0}))
+    .sort((a,b)=>b.fails-a.fails).slice(0,10);
+  const max=sorted[0]?.fails||1;
+
+  document.getElementById('habProblemas').innerHTML=sorted.length
+    ? sorted.map(s=>`
+        <div class="issue-item">
+          <div class="issue-label" style="width:70px;font-weight:700">Hab. ${s.hab}</div>
+          <div class="issue-bar-wrap"><div class="issue-bar" style="width:${Math.round(s.fails/max*100)}%"></div></div>
+          <div class="issue-pct">${s.fails} fallos</div>
+        </div>`).join('')
+    : '<div style="color:var(--gray);font-size:13px;padding:20px 0">Sin datos aún</div>';
 }
 
 // ════════════════════════════════════════════
@@ -756,8 +841,8 @@ function renderBitacora(){
 
 function renderEmpty(){
   set('kpiTotal','–'); set('kpiCumpl','–'); set('kpiMtto','–'); set('kpiHabs','–');
-  document.getElementById('topIssues').innerHTML='<div style="color:var(--gray);font-size:13px;padding:16px 0">Configura Supabase para ver datos</div>';
-  document.getElementById('supCompliance').innerHTML='<div style="color:var(--gray);font-size:13px;padding:16px 0">Configura Supabase para ver datos</div>';
+  document.getElementById('topIssues').innerHTML='<div style="color:var(--gray);font-size:13px;padding:16px 0">Sin datos</div>';
+  document.getElementById('habProblemas').innerHTML='<div style="color:var(--gray);font-size:13px;padding:16px 0">Sin datos</div>';
   document.getElementById('bitacoraBody').innerHTML=`<tr><td colspan="7"><div class="empty-state"><div class="ei">⚙️</div>Configura Supabase para ver la bitácora</div></td></tr>`;
 }
 
