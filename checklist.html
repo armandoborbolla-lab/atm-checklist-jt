@@ -365,7 +365,7 @@ body{
   <div class="success-wrap">
     <div class="success-icon">✅</div>
     <div class="success-title">¡Registro enviado!</div>
-    <div class="success-sub">La revisión fue guardada.<br>El registro quedó en tu Google Sheets.</div>
+    <div class="success-sub">La revisión fue guardada correctamente.</div>
     <button class="btn btn-p" onclick="newChecklist()" style="width:100%">+ Nueva revisión</button>
   </div>
 </div>
@@ -950,13 +950,10 @@ async function submitForm(){
   // Show success
   hideAllScreens();
   document.getElementById('s-success').classList.add('active');
-  if(sent){
-    document.querySelector('.success-sub').textContent=
-      'La revisión fue registrada en Google Sheets correctamente.';
-  } else {
+  if(!sent){
     document.querySelector('.success-sub').innerHTML=
       'Guardado localmente en el dispositivo.<br>' +
-      '<small style="color:#f59e0b">Configura FIREBASE_CONFIG en checklist.html para sincronizar con la base de datos.</small>';
+      '<small style="color:#f59e0b">Sin conexión — se sincronizará cuando haya internet.</small>';
   }
   document.getElementById('header').style.display='none';
   const nav=document.getElementById('nav');
