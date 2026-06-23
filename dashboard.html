@@ -153,6 +153,15 @@ tr:hover td{background:#fafafa}
 .config-banner p{font-size:13px;color:#78350f;line-height:1.5}
 .config-banner code{background:#fef3c7;padding:2px 6px;border-radius:4px;font-size:12px;font-family:monospace}
 
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:24px;right:24px;z-index:999;
+  background:#1f2937;color:#fff;padding:12px 20px;border-radius:12px;
+  font-size:14px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.3);
+  opacity:0;transform:translateY(10px);transition:all .25s;pointer-events:none;
+}
+.toast.show{opacity:1;transform:translateY(0)}
+
 /* ── RESPONSIVE ── */
 @media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:860px){
@@ -401,28 +410,38 @@ document.addEventListener('DOMContentLoaded', ()=>{
 async function loadAll(){
   if(!db){ renderEmpty(); return; }
 
+  // Show loading feedback on Aplicar button
+  const applyBtn = document.querySelector('#rangeBar .refresh-btn');
+  if(applyBtn){ applyBtn.textContent='Cargando…'; applyBtn.disabled=true; }
+
   try{
-    let q = db.collection('revisiones').orderBy('created_at','desc');
+    let q = db.collection('revisiones');
 
     if(period > 0){
       const from = new Date();
       from.setDate(from.getDate() - period);
-      q = q.where('created_at','>=', firebase.firestore.Timestamp.fromDate(from));
+      q = q.where('created_at','>=', firebase.firestore.Timestamp.fromDate(from))
+            .orderBy('created_at','desc');
     } else if(period === -1){
       const fromVal=document.getElementById('rangeFrom').value;
       const toVal=document.getElementById('rangeTo').value;
-      if(fromVal){
-        q=q.where('created_at','>=',firebase.firestore.Timestamp.fromDate(new Date(fromVal+'T00:00:00')));
+      if(fromVal && toVal){
+        q = q.where('created_at','>=',firebase.firestore.Timestamp.fromDate(new Date(fromVal+'T00:00:00')))
+              .where('created_at','<=',firebase.firestore.Timestamp.fromDate(new Date(toVal+'T23:59:59')))
+              .orderBy('created_at','desc');
+      } else if(fromVal){
+        q = q.where('created_at','>=',firebase.firestore.Timestamp.fromDate(new Date(fromVal+'T00:00:00')))
+              .orderBy('created_at','desc');
+      } else {
+        q = q.orderBy('created_at','desc');
       }
-      if(toVal){
-        q=q.where('created_at','<=',firebase.firestore.Timestamp.fromDate(new Date(toVal+'T23:59:59')));
-      }
+    } else {
+      q = q.orderBy('created_at','desc');
     }
 
     const snap = await q.limit(1000).get();
     allData = snap.docs.map(d=>{
       const data = d.data();
-      // Normaliza el timestamp a Date para los renders
       return { ...data, id: d.id,
         created_at: data.created_at?.toDate?.() || new Date(data.created_at) };
     });
@@ -434,7 +453,15 @@ async function loadAll(){
     renderSupCompliance();
     renderBitacora();
     populateFilters();
-  } catch(e){ console.error(e); }
+    showToast(allData.length===0
+      ? '⚠️ Sin registros en ese período'
+      : `✓ ${allData.length} registros cargados`);
+  } catch(e){
+    console.error(e);
+    showToast('❌ Error: '+e.message);
+  } finally {
+    if(applyBtn){ applyBtn.textContent='Aplicar'; applyBtn.disabled=false; }
+  }
 }
 
 // ════════════════════════════════════════════
@@ -692,6 +719,16 @@ function applyRange(){ loadAll(); }
 //  UTILS
 // ════════════════════════════════════════════
 function set(id,val){ const el=document.getElementById(id); if(el) el.textContent=val; }
+
+let toastTimer;
+function showToast(msg){
+  let t=document.getElementById('toast');
+  if(!t){ t=document.createElement('div'); t.id='toast'; t.className='toast'; document.body.appendChild(t); }
+  t.textContent=msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
+}
 
 function shortName(sup){
   if(!sup) return '–';
