@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f2f5e">
+<title>Dashboard ATM — Supervisores</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0f2f5e;--navy2:#1a4a8a;--gold:#d4a017;
+  --green:#16a34a;--green-bg:#dcfce7;
+  --red:#dc2626;--red-bg:#fee2e2;
+  --amber:#d97706;--amber-bg:#fef3c7;
+  --gray:#6b7280;--gray-light:#f3f4f6;
+  --white:#fff;--shadow:0 2px 12px rgba(0,0,0,.09);--r:14px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#eef2f7;color:#1f2937;min-height:100vh;-webkit-font-smoothing:antialiased}
+
+/* ── SIDEBAR ── */
+.layout{display:flex;min-height:100vh}
+.sidebar{
+  width:220px;flex-shrink:0;background:var(--navy);
+  display:flex;flex-direction:column;position:fixed;
+  top:0;left:0;bottom:0;z-index:100;
+}
+.sb-logo{padding:24px 20px 20px;border-bottom:1px solid rgba(255,255,255,.1)}
+.sb-logo-icon{font-size:28px;margin-bottom:6px}
+.sb-logo-title{font-size:14px;font-weight:800;color:#fff;letter-spacing:.3px}
+.sb-logo-sub{font-size:11px;color:rgba(255,255,255,.6);margin-top:2px}
+.sb-nav{flex:1;padding:16px 12px;display:flex;flex-direction:column;gap:4px}
+.sb-item{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  border-radius:10px;font-size:14px;font-weight:600;color:rgba(255,255,255,.75);
+  cursor:pointer;text-decoration:none;transition:all .2s;border:none;background:none;
+  text-align:left;width:100%;
+}
+.sb-item:hover{background:rgba(255,255,255,.1);color:#fff}
+.sb-item.active{background:rgba(255,255,255,.18);color:#fff}
+.sb-item .icon{font-size:18px;width:22px;text-align:center}
+.sb-footer{padding:16px 20px;border-top:1px solid rgba(255,255,255,.1)}
+.sb-ver{font-size:11px;color:rgba(255,255,255,.4)}
+
+/* ── MAIN ── */
+.main{margin-left:220px;flex:1;padding:0}
+.topbar{
+  background:#fff;border-bottom:1px solid #e5e7eb;
+  padding:16px 28px;display:flex;align-items:center;
+  justify-content:space-between;position:sticky;top:0;z-index:50;
+}
+.topbar-title{font-size:18px;font-weight:800;color:var(--navy)}
+.topbar-right{display:flex;align-items:center;gap:12px}
+
+.period-tabs{display:flex;background:var(--gray-light);border-radius:10px;padding:4px;gap:2px}
+.period-tab{
+  padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;
+  color:var(--gray);cursor:pointer;border:none;background:none;transition:all .2s;
+}
+.period-tab.active{background:#fff;color:var(--navy);box-shadow:0 1px 4px rgba(0,0,0,.12)}
+
+.refresh-btn{
+  padding:8px 14px;border-radius:10px;border:none;background:var(--navy);
+  color:#fff;font-size:13px;font-weight:600;cursor:pointer;display:flex;
+  align-items:center;gap:6px;transition:all .2s;
+}
+.refresh-btn:hover{background:var(--navy2)}
+
+.content{padding:24px 28px}
+
+/* ── KPI CARDS ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.kpi{background:#fff;border-radius:var(--r);padding:20px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent,var(--navy))}
+.kpi-label{font-size:12px;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px}
+.kpi-value{font-size:32px;font-weight:800;color:var(--navy);line-height:1;margin-bottom:4px}
+.kpi-sub{font-size:12px;color:var(--gray)}
+.kpi-icon{position:absolute;right:16px;top:16px;font-size:28px;opacity:.15}
+
+/* ── CHARTS ROW ── */
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.chart-card{background:#fff;border-radius:var(--r);padding:20px;box-shadow:var(--shadow)}
+.chart-title{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.chart-wrap{position:relative;height:220px}
+
+/* ── TOP ISSUES ── */
+.bottom-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.panel{background:#fff;border-radius:var(--r);padding:20px;box-shadow:var(--shadow)}
+.panel-title{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:16px}
+
+.issue-item{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #f3f4f6}
+.issue-item:last-child{border-bottom:none}
+.issue-bar-wrap{flex:1;background:var(--gray-light);border-radius:4px;height:8px;overflow:hidden}
+.issue-bar{height:100%;background:var(--red);border-radius:4px;transition:width .5s ease}
+.issue-label{font-size:13px;color:#374151;width:170px;flex-shrink:0}
+.issue-pct{font-size:13px;font-weight:700;color:var(--red);width:42px;text-align:right;flex-shrink:0}
+
+.sup-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f3f4f6}
+.sup-item:last-child{border-bottom:none}
+.sup-avatar{width:34px;height:34px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0}
+.sup-info{flex:1}
+.sup-name{font-size:13px;font-weight:600;color:#1f2937}
+.sup-meta{font-size:11px;color:var(--gray)}
+.sup-pct{font-size:15px;font-weight:800}
+.pct-green{color:var(--green)}
+.pct-amber{color:var(--amber)}
+.pct-red{color:var(--red)}
+
+/* ── BITÁCORA ── */
+.section-title{font-size:16px;font-weight:800;color:var(--navy);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+
+.filters-row{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.filter-sel{
+  padding:9px 12px;border:2px solid #e5e7eb;border-radius:10px;
+  font-size:13px;color:#374151;background:#fff;appearance:none;
+  font-family:inherit;cursor:pointer;
+}
+.filter-sel:focus{outline:none;border-color:var(--navy)}
+
+.table-wrap{background:#fff;border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead{background:#f8fafc}
+th{padding:11px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.4px;border-bottom:2px solid #e5e7eb}
+td{padding:12px 14px;border-bottom:1px solid #f3f4f6;color:#374151;vertical-align:top}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafafa}
+.td-date{font-size:12px;color:var(--gray);white-space:nowrap}
+.td-sup{font-weight:600}
+.td-hab{font-family:monospace;font-weight:700;font-size:14px}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700;white-space:nowrap}
+.b-ok{background:var(--green-bg);color:var(--green)}
+.b-mtto{background:var(--red-bg);color:var(--red)}
+.b-tipo{background:#ede9fe;color:#6d28d9}
+.issues-pills{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.pill{font-size:10px;padding:2px 7px;border-radius:10px;background:var(--red-bg);color:var(--red);font-weight:600}
+
+.empty-state{text-align:center;padding:48px 20px;color:var(--gray)}
+.empty-state .ei{font-size:40px;margin-bottom:12px}
+
+/* ── LOADING ── */
+.skeleton{background:linear-gradient(90deg,#e5e7eb 25%,#f3f4f6 50%,#e5e7eb 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:8px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ── CONFIG BANNER ── */
+.config-banner{
+  background:#fffbeb;border:2px solid #fcd34d;border-radius:var(--r);
+  padding:16px 20px;margin-bottom:24px;display:flex;align-items:flex-start;gap:12px;
+}
+.config-banner .cb-icon{font-size:22px;flex-shrink:0}
+.config-banner h3{font-size:14px;font-weight:700;color:#92400e;margin-bottom:4px}
+.config-banner p{font-size:13px;color:#78350f;line-height:1.5}
+.config-banner code{background:#fef3c7;padding:2px 6px;border-radius:4px;font-size:12px;font-family:monospace}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:860px){
+  .charts-row,.bottom-row{grid-template-columns:1fr}
+  .sidebar{width:200px}
+  .main{margin-left:200px}
+}
+@media(max-width:680px){
+  .sidebar{display:none}
+  .main{margin-left:0}
+  .kpi-grid{grid-template-columns:1fr 1fr}
+  .topbar{padding:14px 16px}
+  .content{padding:16px}
+}
+</style>
+</head>
+<body>
+
+<!-- ─────── SIDEBAR ─────── -->
+<div class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-icon">🏨</div>
+    <div class="sb-logo-title">ATM Dashboard</div>
+    <div class="sb-logo-sub">Supervisores de turno</div>
+  </div>
+  <nav class="sb-nav">
+    <button class="sb-item active" onclick="showView('overview')">
+      <span class="icon">📊</span> Indicadores
+    </button>
+    <button class="sb-item" onclick="showView('bitacora')">
+      <span class="icon">📋</span> Bitácora
+    </button>
+    <a class="sb-item" href="checklist.html" target="_blank">
+      <span class="icon">✏️</span> Ir al Checklist
+    </a>
+  </nav>
+  <div class="sb-footer">
+    <div class="sb-ver">v2.0 · Supabase</div>
+  </div>
+</div>
+
+<!-- ─────── MAIN ─────── -->
+<div class="main">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-title" id="viewTitle">📊 Indicadores</div>
+    <div class="topbar-right">
+      <div class="period-tabs" id="periodTabs">
+        <button class="period-tab active" data-days="1"  onclick="setPeriod(this,1)">Hoy</button>
+        <button class="period-tab"        data-days="7"  onclick="setPeriod(this,7)">7 días</button>
+        <button class="period-tab"        data-days="30" onclick="setPeriod(this,30)">30 días</button>
+        <button class="period-tab"        data-days="0"  onclick="setPeriod(this,0)">Todo</button>
+      </div>
+      <button class="refresh-btn" onclick="loadAll()">↻ Actualizar</button>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+    <!-- Config banner (se oculta si Supabase está configurado) -->
+    <div class="config-banner" id="configBanner">
+      <div class="cb-icon">⚙️</div>
+      <div>
+        <h3>Configura Supabase para ver datos reales</h3>
+        <p>
+          Abre <code>dashboard.html</code> y <code>checklist.html</code> en un editor.<br>
+          Reemplaza <code>SUPABASE_URL</code> y <code>SUPABASE_KEY</code> con los valores de tu proyecto.<br>
+          Los encuentras en: <strong>Supabase → Settings → API</strong>
+        </p>
+      </div>
+    </div>
+
+    <!-- ── VIEW: OVERVIEW ── -->
+    <div id="view-overview">
+      <!-- KPIs -->
+      <div class="kpi-grid" id="kpiGrid">
+        <div class="kpi" style="--accent:var(--navy)">
+          <div class="kpi-label">Revisiones</div>
+          <div class="kpi-value" id="kpiTotal">–</div>
+          <div class="kpi-sub">en el período</div>
+          <div class="kpi-icon">📋</div>
+        </div>
+        <div class="kpi" style="--accent:var(--green)">
+          <div class="kpi-label">Cumplimiento global</div>
+          <div class="kpi-value" id="kpiCumpl">–</div>
+          <div class="kpi-sub">promedio de todos los ítems</div>
+          <div class="kpi-icon">✅</div>
+        </div>
+        <div class="kpi" style="--accent:var(--red)">
+          <div class="kpi-label">Requieren mantenimiento</div>
+          <div class="kpi-value" id="kpiMtto">–</div>
+          <div class="kpi-sub">habitaciones con fallo técnico</div>
+          <div class="kpi-icon">🔧</div>
+        </div>
+        <div class="kpi" style="--accent:var(--gold)">
+          <div class="kpi-label">Habitaciones revisadas</div>
+          <div class="kpi-value" id="kpiHabs">–</div>
+          <div class="kpi-sub">únicas en el período</div>
+          <div class="kpi-icon">🚪</div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-title">🏆 Cumplimiento por sección</div>
+          <div class="chart-wrap"><canvas id="chartSecciones"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">👤 Revisiones por supervisor</div>
+          <div class="chart-wrap"><canvas id="chartSupervisores"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Bottom panels -->
+      <div class="bottom-row">
+        <div class="panel">
+          <div class="panel-title">⚠️ Ítems que más fallan</div>
+          <div id="topIssues"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">👥 Cumplimiento por supervisor</div>
+          <div id="supCompliance"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: BITÁCORA ── -->
+    <div id="view-bitacora" style="display:none">
+      <div class="section-title">📋 Bitácora de revisiones</div>
+      <div class="filters-row">
+        <select class="filter-sel" id="filtSup" onchange="applyFilters()">
+          <option value="">Todos los supervisores</option>
+        </select>
+        <select class="filter-sel" id="filtResultado" onchange="applyFilters()">
+          <option value="">Todos los resultados</option>
+          <option value="lista">✅ Lista para venta</option>
+          <option value="mtto">🔧 Requiere mantenimiento</option>
+        </select>
+        <select class="filter-sel" id="filtTipo" onchange="applyFilters()">
+          <option value="">Todos los tipos</option>
+          <option value="sencilla">Sencilla</option>
+          <option value="plus">Plus</option>
+          <option value="suite">Suite</option>
+        </select>
+        <input type="text" class="filter-sel" id="filtHab" placeholder="Habitación…"
+          oninput="applyFilters()" style="width:120px">
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Supervisor</th>
+              <th>Hab.</th>
+              <th>Tipo</th>
+              <th>Resultado</th>
+              <th>Fallos</th>
+              <th>Obs. Mtto.</th>
+            </tr>
+          </thead>
+          <tbody id="bitacoraBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════
+//  CONFIGURACIÓN FIREBASE — mismo objeto que en checklist.html
+// ════════════════════════════════════════════
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBdL7HTAlTEqRY0bAUW2u0hz5WPWhIgC4s",
+  authDomain: "atm-checklist-jt.firebaseapp.com",
+  projectId: "atm-checklist-jt",
+  storageBucket: "atm-checklist-jt.firebasestorage.app",
+  messagingSenderId: "439849642095",
+  appId: "1:439849642095:web:fdc7099bbdd2efd35c459a"
+};
+
+let db = null;
+if(FIREBASE_CONFIG){
+  firebase.initializeApp(FIREBASE_CONFIG);
+  db = firebase.firestore();
+}
+
+// ════════════════════════════════════════════
+//  ESTADO
+// ════════════════════════════════════════════
+let allData  = [];
+let filtered = [];
+let period   = 1;   // días; 0 = todo
+let chartSec = null;
+let chartSup = null;
+
+const ITEMS = {
+  'entrada_puerta':'Puerta limpia','entrada_chapa':'Chapa funcionando',
+  'entrada_cochera':'Cochera limpia','entrada_cortina':'Cortina cochera',
+  'cama_sabanas':'Sábanas limpias','cama_almohadas':'Almohadas','cama_cabecera':'Cabecera',
+  'cama_colcha':'Colcha','cama_mobiliario':'Mobiliario','cama_mesa':'Mesa y sillas',
+  'cama_telefono':'Teléfono','cama_espejos':'Espejos cama','cama_controles':'Controles',
+  'bano_inodoro':'Inodoro','bano_regadera':'Regadera','bano_bote':'Bote basura',
+  'bano_cancel':'Cancel','bano_papel':'Papel higiénico','bano_lavabo':'Lavabo',
+  'bano_piso':'Piso baño','bano_toallas':'Toallas',
+  'am_jabon_barra':'Jabón barra','am_jabon_liquido':'Jabón líquido','am_shampoo':'Shampoo',
+  'am_burbujas':'Burbujas','am_preservativo':'Preservativo','am_agua':'Agua purificada',
+  'lim_kamasutra':'Kamasutra','lim_piso':'Piso general','lim_basura':'Basura retirada',
+  'lim_ventanas':'Ventanas','lim_olor':'Olor agradable','lim_paredes':'Paredes',
+  'lim_espejos':'Espejos general',
+  'tec_tv':'TV y Xview','tec_clima':'Clima',
+};
+
+const SEC_FIELDS = {
+  '🚪 Entrada':   ['entrada_puerta','entrada_chapa','entrada_cochera','entrada_cortina'],
+  '🛏️ Cama':     ['cama_sabanas','cama_almohadas','cama_cabecera','cama_colcha','cama_mobiliario','cama_mesa','cama_telefono','cama_espejos','cama_controles'],
+  '🚿 Baño':      ['bano_inodoro','bano_regadera','bano_bote','bano_cancel','bano_papel','bano_lavabo','bano_piso','bano_toallas'],
+  '🧴 Amenidades':['am_jabon_barra','am_jabon_liquido','am_shampoo','am_burbujas','am_preservativo','am_agua'],
+  '✨ Limpieza':  ['lim_kamasutra','lim_piso','lim_basura','lim_ventanas','lim_olor','lim_paredes','lim_espejos'],
+  '📺 Técnico':   ['tec_tv','tec_clima'],
+};
+
+// ════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', ()=>{
+  if(!db){
+    document.getElementById('configBanner').style.display='flex';
+    renderEmpty();
+  } else {
+    document.getElementById('configBanner').style.display='none';
+    loadAll();
+  }
+});
+
+async function loadAll(){
+  if(!db){ renderEmpty(); return; }
+
+  try{
+    let q = db.collection('revisiones').orderBy('created_at','desc');
+
+    if(period > 0){
+      const from = new Date();
+      from.setDate(from.getDate() - period);
+      q = q.where('created_at','>=', firebase.firestore.Timestamp.fromDate(from));
+    }
+
+    const snap = await q.limit(1000).get();
+    allData = snap.docs.map(d=>{
+      const data = d.data();
+      // Normaliza el timestamp a Date para los renders
+      return { ...data, id: d.id,
+        created_at: data.created_at?.toDate?.() || new Date(data.created_at) };
+    });
+    filtered = [...allData];
+
+    renderKPIs();
+    renderCharts();
+    renderIssues();
+    renderSupCompliance();
+    renderBitacora();
+    populateFilters();
+  } catch(e){ console.error(e); }
+}
+
+// ════════════════════════════════════════════
+//  KPIs
+// ════════════════════════════════════════════
+function renderKPIs(){
+  const total = allData.length;
+  const mtto  = allData.filter(r=> r.resultado?.toLowerCase().includes('mtto')||
+                                   r.resultado?.toLowerCase().includes('corrección')).length;
+  const habs  = new Set(allData.map(r=>r.habitacion)).size;
+
+  // Cumplimiento global
+  let ok=0, all=0;
+  allData.forEach(r=>{
+    Object.keys(ITEMS).forEach(k=>{
+      const v=r[k];
+      if(v==='cumple'||v==='no_cumple'){ all++; if(v==='cumple') ok++; }
+    });
+  });
+  const pct = all>0 ? Math.round(ok/all*100)+'%' : '–';
+  const pctColor = all>0
+    ? (ok/all>0.9?'var(--green)': ok/all>0.7?'var(--amber)':'var(--red)')
+    : 'var(--navy)';
+
+  set('kpiTotal', total||'0');
+  set('kpiCumpl', pct);
+  set('kpiMtto',  mtto||'0');
+  set('kpiHabs',  habs||'0');
+  document.getElementById('kpiCumpl').style.color=pctColor;
+}
+
+// ════════════════════════════════════════════
+//  CHARTS
+// ════════════════════════════════════════════
+function renderCharts(){
+  renderChartSecciones();
+  renderChartSupervisores();
+}
+
+function renderChartSecciones(){
+  const labels=[], pcts=[], colors=[];
+  Object.entries(SEC_FIELDS).forEach(([lbl,fields])=>{
+    let ok=0, total=0;
+    allData.forEach(r=>{
+      fields.forEach(f=>{
+        const v=r[f];
+        if(v==='cumple'||v==='no_cumple'){ total++; if(v==='cumple') ok++; }
+      });
+    });
+    const pct=total>0?Math.round(ok/total*100):0;
+    labels.push(lbl);
+    pcts.push(pct);
+    colors.push(pct>=90?'rgba(22,163,74,.8)':pct>=70?'rgba(217,119,6,.8)':'rgba(220,38,38,.8)');
+  });
+
+  if(chartSec) chartSec.destroy();
+  chartSec=new Chart(document.getElementById('chartSecciones').getContext('2d'),{
+    type:'bar',
+    data:{labels,datasets:[{data:pcts,backgroundColor:colors,borderRadius:8,borderSkipped:false}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw+'%'}}},
+      scales:{
+        y:{min:0,max:100,ticks:{callback:v=>v+'%'},grid:{color:'#f3f4f6'}},
+        x:{grid:{display:false},ticks:{font:{size:11}}}
+      }
+    }
+  });
+}
+
+function renderChartSupervisores(){
+  const counts={};
+  allData.forEach(r=>{
+    const name=shortName(r.supervisor);
+    counts[name]=(counts[name]||0)+1;
+  });
+  const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,6);
+
+  if(chartSup) chartSup.destroy();
+  chartSup=new Chart(document.getElementById('chartSupervisores').getContext('2d'),{
+    type:'doughnut',
+    data:{
+      labels:sorted.map(s=>s[0]),
+      datasets:[{data:sorted.map(s=>s[1]),backgroundColor:['#0f2f5e','#1a4a8a','#d4a017','#16a34a','#dc2626','#7c3aed'],borderWidth:0,hoverOffset:6}]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:12}}}
+    }
+  });
+}
+
+// ════════════════════════════════════════════
+//  TOP ISSUES
+// ════════════════════════════════════════════
+function renderIssues(){
+  const fails={};
+  allData.forEach(r=>{
+    Object.keys(ITEMS).forEach(k=>{
+      if(r[k]==='no_cumple') fails[k]=(fails[k]||0)+1;
+    });
+  });
+  const sorted=Object.entries(fails).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const max=sorted[0]?.[1]||1;
+
+  document.getElementById('topIssues').innerHTML = sorted.length
+    ? sorted.map(([k,n])=>`
+        <div class="issue-item">
+          <div class="issue-label">${ITEMS[k]||k}</div>
+          <div class="issue-bar-wrap"><div class="issue-bar" style="width:${Math.round(n/max*100)}%"></div></div>
+          <div class="issue-pct">${n}</div>
+        </div>`).join('')
+    : '<div style="color:var(--gray);font-size:13px;padding:20px 0">Sin datos aún</div>';
+}
+
+// ════════════════════════════════════════════
+//  CUMPLIMIENTO POR SUPERVISOR
+// ════════════════════════════════════════════
+function renderSupCompliance(){
+  const stats={};
+  allData.forEach(r=>{
+    const name=shortName(r.supervisor);
+    if(!stats[name]) stats[name]={ok:0,total:0,count:0};
+    stats[name].count++;
+    Object.keys(ITEMS).forEach(k=>{
+      const v=r[k];
+      if(v==='cumple'||v==='no_cumple'){stats[name].total++;if(v==='cumple')stats[name].ok++;}
+    });
+  });
+
+  const sorted=Object.entries(stats)
+    .map(([name,s])=>({name,pct:s.total>0?Math.round(s.ok/s.total*100):0,count:s.count}))
+    .sort((a,b)=>b.pct-a.pct);
+
+  document.getElementById('supCompliance').innerHTML = sorted.length
+    ? sorted.map(s=>{
+        const cls=s.pct>=90?'pct-green':s.pct>=70?'pct-amber':'pct-red';
+        return `
+          <div class="sup-item">
+            <div class="sup-avatar">${s.name[0]||'?'}</div>
+            <div class="sup-info">
+              <div class="sup-name">${s.name}</div>
+              <div class="sup-meta">${s.count} revisión${s.count!==1?'es':''}</div>
+            </div>
+            <div class="sup-pct ${cls}">${s.pct}%</div>
+          </div>`;
+      }).join('')
+    : '<div style="color:var(--gray);font-size:13px;padding:20px 0">Sin datos aún</div>';
+}
+
+// ════════════════════════════════════════════
+//  BITÁCORA
+// ════════════════════════════════════════════
+function populateFilters(){
+  const sups=[...new Set(allData.map(r=>shortName(r.supervisor)))].sort();
+  const sel=document.getElementById('filtSup');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">Todos los supervisores</option>'+
+    sups.map(s=>`<option value="${s}"${s===cur?'selected':''}>${s}</option>`).join('');
+}
+
+function applyFilters(){
+  const sup=document.getElementById('filtSup').value;
+  const res=document.getElementById('filtResultado').value;
+  const tipo=document.getElementById('filtTipo').value;
+  const hab=document.getElementById('filtHab').value.trim().toLowerCase();
+
+  filtered=allData.filter(r=>{
+    if(sup && shortName(r.supervisor)!==sup) return false;
+    if(res){
+      const isMtto=r.resultado?.toLowerCase().includes('mtto')||r.resultado?.toLowerCase().includes('corrección');
+      if(res==='lista'&&isMtto) return false;
+      if(res==='mtto'&&!isMtto) return false;
+    }
+    if(tipo && r.tipo_habitacion!==tipo) return false;
+    if(hab && !String(r.habitacion).toLowerCase().includes(hab)) return false;
+    return true;
+  });
+
+  renderBitacora();
+}
+
+function renderBitacora(){
+  const rows=filtered.slice(0,200);
+  if(!rows.length){
+    document.getElementById('bitacoraBody').innerHTML=
+      `<tr><td colspan="7"><div class="empty-state"><div class="ei">📭</div>Sin revisiones en este período</div></td></tr>`;
+    return;
+  }
+
+  document.getElementById('bitacoraBody').innerHTML=rows.map(r=>{
+    const isMtto=r.resultado?.toLowerCase().includes('mtto')||r.resultado?.toLowerCase().includes('corrección');
+    const date=new Date(r.created_at).toLocaleString('es-MX',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const failKeys=Object.keys(ITEMS).filter(k=>r[k]==='no_cumple');
+
+    return `
+      <tr>
+        <td class="td-date">${date}</td>
+        <td class="td-sup">${shortName(r.supervisor)}</td>
+        <td class="td-hab">${r.habitacion}</td>
+        <td><span class="badge b-tipo">${capitalize(r.tipo_habitacion||'')}</span></td>
+        <td><span class="badge ${isMtto?'b-mtto':'b-ok'}">${isMtto?'🔧 Mtto':'✅ Lista'}</span></td>
+        <td>
+          ${failKeys.length
+            ? `<div class="issues-pills">${failKeys.slice(0,5).map(k=>`<span class="pill">${ITEMS[k]}</span>`).join('')}${failKeys.length>5?`<span class="pill">+${failKeys.length-5}</span>`:''}</div>`
+            : '<span style="color:var(--gray);font-size:12px">Sin fallos</span>'}
+        </td>
+        <td style="font-size:12px;color:var(--gray);max-width:180px">${r.obs_mtto||'–'}</td>
+      </tr>`;
+  }).join('');
+}
+
+function renderEmpty(){
+  set('kpiTotal','–'); set('kpiCumpl','–'); set('kpiMtto','–'); set('kpiHabs','–');
+  document.getElementById('topIssues').innerHTML='<div style="color:var(--gray);font-size:13px;padding:16px 0">Configura Supabase para ver datos</div>';
+  document.getElementById('supCompliance').innerHTML='<div style="color:var(--gray);font-size:13px;padding:16px 0">Configura Supabase para ver datos</div>';
+  document.getElementById('bitacoraBody').innerHTML=`<tr><td colspan="7"><div class="empty-state"><div class="ei">⚙️</div>Configura Supabase para ver la bitácora</div></td></tr>`;
+}
+
+// ════════════════════════════════════════════
+//  NAVIGATION
+// ════════════════════════════════════════════
+function showView(view){
+  document.getElementById('view-overview').style.display=view==='overview'?'block':'none';
+  document.getElementById('view-bitacora').style.display=view==='bitacora'?'block':'none';
+  document.getElementById('periodTabs').style.display=view==='overview'?'flex':'none';
+  document.getElementById('viewTitle').textContent=
+    view==='overview'?'📊 Indicadores':'📋 Bitácora';
+  document.querySelectorAll('.sb-item').forEach((b,i)=>{
+    b.classList.toggle('active',(view==='overview'&&i===0)||(view==='bitacora'&&i===1));
+  });
+}
+
+function setPeriod(btn,days){
+  document.querySelectorAll('.period-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  period=days;
+  loadAll();
+}
+
+// ════════════════════════════════════════════
+//  UTILS
+// ════════════════════════════════════════════
+function set(id,val){ const el=document.getElementById(id); if(el) el.textContent=val; }
+
+function shortName(sup){
+  if(!sup) return '–';
+  // Strip employee number prefix
+  const clean=sup.replace(/^\d+\s*-\s*/,'').replace(/\s*-\s*$/,'').trim();
+  const parts=clean.split(' ');
+  return parts[0]+' '+(parts[1]||'');
+}
+
+function capitalize(s){ return s?s[0].toUpperCase()+s.slice(1):s }
+</script>
+</body>
+</html>

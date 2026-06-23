@@ -1,0 +1,13 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /revisiones/{docId} {
+      // Cualquiera puede crear una revisión (la app del checklist)
+      allow create: if true;
+      // Solo lectura — para el dashboard (sin login por ahora)
+      allow read: if true;
+      // Nadie puede editar ni borrar desde el cliente
+      allow update, delete: if false;
+    }
+  }
+}
