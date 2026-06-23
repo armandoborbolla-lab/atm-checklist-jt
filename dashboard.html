@@ -153,6 +153,56 @@ tr:hover td{background:#fafafa}
 .config-banner p{font-size:13px;color:#78350f;line-height:1.5}
 .config-banner code{background:#fef3c7;padding:2px 6px;border-radius:4px;font-size:12px;font-family:monospace}
 
+/* ── HABITACIONES VIEW ── */
+.hab-search-wrap{display:flex;gap:10px;margin-bottom:20px;align-items:center}
+.hab-search{
+  flex:1;max-width:280px;padding:10px 14px;border:2px solid #e5e7eb;
+  border-radius:10px;font-size:14px;font-family:inherit;
+}
+.hab-search:focus{outline:none;border-color:var(--navy)}
+.hab-count{font-size:13px;color:var(--gray);margin-left:4px}
+
+.hab-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:24px}
+.hab-card{
+  background:#fff;border-radius:var(--r);padding:16px;box-shadow:var(--shadow);
+  cursor:pointer;border:2px solid transparent;transition:all .18s;position:relative;overflow:hidden;
+}
+.hab-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent,var(--navy))}
+.hab-card:hover{border-color:var(--navy);transform:translateY(-1px)}
+.hab-card.selected{border-color:var(--navy);background:#f0f5ff}
+.hab-num{font-size:26px;font-weight:800;color:var(--navy);line-height:1;margin-bottom:6px}
+.hab-tipo{font-size:11px;color:var(--gray);margin-bottom:10px;text-transform:capitalize}
+.hab-stat{display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+.hab-stat-label{font-size:11px;color:var(--gray)}
+.hab-stat-val{font-size:13px;font-weight:700}
+.hab-last{font-size:11px;color:var(--gray);margin-top:8px;border-top:1px solid #f3f4f6;padding-top:8px}
+
+/* Detail panel */
+.hab-detail{background:#fff;border-radius:var(--r);box-shadow:var(--shadow);padding:20px;margin-bottom:24px;display:none}
+.hab-detail.open{display:block}
+.hab-detail-header{display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap}
+.hab-detail-num{font-size:36px;font-weight:800;color:var(--navy)}
+.hab-detail-meta{flex:1}
+.hab-detail-title{font-size:16px;font-weight:700;color:#1f2937}
+.hab-detail-sub{font-size:13px;color:var(--gray);margin-top:2px}
+.hab-mini-kpis{display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap}
+.hab-mini-kpi{background:var(--gray-light);border-radius:10px;padding:12px 16px;min-width:110px}
+.hab-mini-kpi .mk-val{font-size:22px;font-weight:800;color:var(--navy)}
+.hab-mini-kpi .mk-lbl{font-size:11px;color:var(--gray);margin-top:2px}
+
+.timeline{display:flex;flex-direction:column;gap:0}
+.tl-item{display:flex;gap:14px;padding:12px 0;border-bottom:1px solid #f3f4f6;align-items:flex-start}
+.tl-item:last-child{border-bottom:none}
+.tl-dot{width:10px;height:10px;border-radius:50%;margin-top:5px;flex-shrink:0}
+.tl-dot.ok{background:var(--green)}
+.tl-dot.mtto{background:var(--red)}
+.tl-body{flex:1}
+.tl-date{font-size:12px;color:var(--gray);margin-bottom:2px}
+.tl-sup{font-size:13px;font-weight:600;color:#1f2937}
+.tl-pct{font-size:13px;font-weight:700;margin-left:auto;flex-shrink:0}
+.tl-pills{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
+.tl-obs{font-size:11px;color:var(--amber);margin-top:4px}
+
 /* ── TOAST ── */
 .toast{
   position:fixed;bottom:24px;right:24px;z-index:999;
@@ -193,6 +243,9 @@ tr:hover td{background:#fafafa}
     </button>
     <button class="sb-item" onclick="showView('bitacora')">
       <span class="icon">📋</span> Bitácora
+    </button>
+    <button class="sb-item" onclick="showView('habitaciones')">
+      <span class="icon">🚪</span> Por Habitación
     </button>
     <a class="sb-item" href="checklist.html" target="_blank">
       <span class="icon">✏️</span> Ir al Checklist
@@ -297,6 +350,33 @@ tr:hover td{background:#fafafa}
           <div id="supCompliance"></div>
         </div>
       </div>
+    </div>
+
+    <!-- ── VIEW: HABITACIONES ── -->
+    <div id="view-habitaciones" style="display:none">
+      <div class="hab-search-wrap">
+        <input type="text" id="habSearch" class="hab-search"
+          placeholder="Buscar habitación…" oninput="filterHabs()">
+        <span class="hab-count" id="habCount"></span>
+      </div>
+
+      <!-- Detail panel (aparece al hacer clic en una tarjeta) -->
+      <div class="hab-detail" id="habDetail">
+        <div class="hab-detail-header">
+          <div class="hab-detail-num" id="detailNum">–</div>
+          <div class="hab-detail-meta">
+            <div class="hab-detail-title" id="detailTitle">Habitación</div>
+            <div class="hab-detail-sub" id="detailSub"></div>
+          </div>
+          <button class="refresh-btn" onclick="closeHabDetail()" style="background:#6b7280">✕ Cerrar</button>
+        </div>
+        <div class="hab-mini-kpis" id="detailKpis"></div>
+        <div class="panel-title" style="margin-bottom:12px">Historial de revisiones</div>
+        <div class="timeline" id="detailTimeline"></div>
+      </div>
+
+      <!-- Grid de habitaciones -->
+      <div class="hab-grid" id="habGrid"></div>
     </div>
 
     <!-- ── VIEW: BITÁCORA ── -->
@@ -687,12 +767,17 @@ function renderEmpty(){
 function showView(view){
   document.getElementById('view-overview').style.display=view==='overview'?'block':'none';
   document.getElementById('view-bitacora').style.display=view==='bitacora'?'block':'none';
+  document.getElementById('view-habitaciones').style.display=view==='habitaciones'?'block':'none';
   document.getElementById('periodTabs').style.display=view==='overview'?'flex':'none';
-  document.getElementById('viewTitle').textContent=
-    view==='overview'?'📊 Indicadores':'📋 Bitácora';
+  document.getElementById('rangeBar').style.display=
+    (view==='overview'&&period===-1)?'flex':'none';
+  const titles={overview:'📊 Indicadores',bitacora:'📋 Bitácora',habitaciones:'🚪 Por Habitación'};
+  document.getElementById('viewTitle').textContent=titles[view]||'';
   document.querySelectorAll('.sb-item').forEach((b,i)=>{
-    b.classList.toggle('active',(view==='overview'&&i===0)||(view==='bitacora'&&i===1));
+    b.classList.toggle('active',
+      (view==='overview'&&i===0)||(view==='bitacora'&&i===1)||(view==='habitaciones'&&i===2));
   });
+  if(view==='habitaciones') renderHabGrid();
 }
 
 function setPeriod(btn,days){
@@ -714,6 +799,148 @@ function setPeriod(btn,days){
 }
 
 function applyRange(){ loadAll(); }
+
+// ════════════════════════════════════════════
+//  UTILS
+// ════════════════════════════════════════════
+// ════════════════════════════════════════════
+//  HABITACIONES
+// ════════════════════════════════════════════
+let habData = {};   // { "101": [rev, rev, …], … }
+let habFilter = '';
+
+function buildHabData(){
+  habData = {};
+  allData.forEach(r=>{
+    const h = String(r.habitacion||'?');
+    if(!habData[h]) habData[h]=[];
+    habData[h].push(r);
+  });
+  // sort each room's reviews newest-first
+  Object.values(habData).forEach(arr=>arr.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)));
+}
+
+function habCompliance(reviews){
+  let ok=0,total=0;
+  reviews.forEach(r=>{
+    Object.keys(ITEMS).forEach(k=>{
+      const v=r[k];
+      if(v==='cumple'||v==='no_cumple'){total++;if(v==='cumple')ok++;}
+    });
+  });
+  return total>0?Math.round(ok/total*100):null;
+}
+
+function renderHabGrid(){
+  buildHabData();
+  filterHabs();
+}
+
+function filterHabs(){
+  habFilter = (document.getElementById('habSearch').value||'').trim().toLowerCase();
+  const rooms = Object.keys(habData)
+    .filter(h=>!habFilter||h.includes(habFilter))
+    .sort((a,b)=>habData[b].length-habData[a].length); // más revisadas primero
+
+  document.getElementById('habCount').textContent = rooms.length+' habitación'+(rooms.length!==1?'es':'');
+
+  if(!rooms.length){
+    document.getElementById('habGrid').innerHTML=
+      `<div class="empty-state" style="grid-column:1/-1"><div class="ei">🔍</div>Sin resultados</div>`;
+    return;
+  }
+
+  document.getElementById('habGrid').innerHTML = rooms.map(h=>{
+    const revs = habData[h];
+    const count = revs.length;
+    const pct = habCompliance(revs);
+    const pctColor = pct===null?'var(--gray)':pct>=90?'var(--green)':pct>=70?'var(--amber)':'var(--red)';
+    const last = revs[0];
+    const lastDate = new Date(last.created_at).toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'2-digit'});
+    const lastSup = shortName(last.supervisor);
+    const isMtto = last.resultado?.toLowerCase().includes('mtto')||last.resultado?.toLowerCase().includes('corrección');
+    const accentColor = isMtto?'var(--red)':pct>=90?'var(--green)':pct>=70?'var(--amber)':'var(--navy)';
+    const tipos = [...new Set(revs.map(r=>r.tipo_habitacion).filter(Boolean))];
+
+    return `
+      <div class="hab-card" style="--accent:${accentColor}" onclick="openHabDetail('${h}')">
+        <div class="hab-num">${h}</div>
+        <div class="hab-tipo">${tipos.join(' / ')||'–'}</div>
+        <div class="hab-stat">
+          <span class="hab-stat-label">Revisiones</span>
+          <span class="hab-stat-val">${count}</span>
+        </div>
+        <div class="hab-stat">
+          <span class="hab-stat-label">Cumplimiento</span>
+          <span class="hab-stat-val" style="color:${pctColor}">${pct!==null?pct+'%':'–'}</span>
+        </div>
+        <div class="hab-last">Última: ${lastDate} · ${lastSup}</div>
+      </div>`;
+  }).join('');
+}
+
+function openHabDetail(habNum){
+  const revs = habData[habNum];
+  if(!revs) return;
+
+  // Scroll to detail panel
+  const panel = document.getElementById('habDetail');
+  panel.classList.add('open');
+  panel.scrollIntoView({behavior:'smooth',block:'start'});
+
+  // Header
+  document.getElementById('detailNum').textContent = habNum;
+  document.getElementById('detailTitle').textContent = 'Habitación '+habNum;
+  const tipos = [...new Set(revs.map(r=>r.tipo_habitacion).filter(Boolean))];
+  document.getElementById('detailSub').textContent =
+    tipos.join(' / ') + ' · ' + revs.length+' revisión'+(revs.length!==1?'es':'');
+
+  // Mini KPIs
+  const pct = habCompliance(revs);
+  const mttoCount = revs.filter(r=>r.resultado?.toLowerCase().includes('mtto')||r.resultado?.toLowerCase().includes('corrección')).length;
+  const sups = [...new Set(revs.map(r=>shortName(r.supervisor)))];
+  const pctColor = pct===null?'var(--navy)':pct>=90?'var(--green)':pct>=70?'var(--amber)':'var(--red)';
+  document.getElementById('detailKpis').innerHTML=`
+    <div class="hab-mini-kpi"><div class="mk-val">${revs.length}</div><div class="mk-lbl">Revisiones</div></div>
+    <div class="hab-mini-kpi"><div class="mk-val" style="color:${pctColor}">${pct!==null?pct+'%':'–'}</div><div class="mk-lbl">Cumplimiento prom.</div></div>
+    <div class="hab-mini-kpi"><div class="mk-val" style="color:var(--red)">${mttoCount}</div><div class="mk-lbl">Requirieron mtto</div></div>
+    <div class="hab-mini-kpi"><div class="mk-val" style="font-size:14px">${sups.join(', ')}</div><div class="mk-lbl">Supervisores</div></div>`;
+
+  // Timeline
+  document.getElementById('detailTimeline').innerHTML = revs.map(r=>{
+    const isMtto = r.resultado?.toLowerCase().includes('mtto')||r.resultado?.toLowerCase().includes('corrección');
+    const rPct = habCompliance([r]);
+    const rColor = rPct===null?'var(--gray)':rPct>=90?'var(--green)':rPct>=70?'var(--amber)':'var(--red)';
+    const date = new Date(r.created_at).toLocaleString('es-MX',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const fails = Object.keys(ITEMS).filter(k=>r[k]==='no_cumple');
+    return `
+      <div class="tl-item">
+        <div class="tl-dot ${isMtto?'mtto':'ok'}"></div>
+        <div class="tl-body">
+          <div class="tl-date">${date}</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="tl-sup">${shortName(r.supervisor)}</div>
+            <span class="badge ${isMtto?'b-mtto':'b-ok'}" style="font-size:10px">${isMtto?'🔧 Mtto':'✅ Lista'}</span>
+            <span class="badge b-tipo" style="font-size:10px">${capitalize(r.tipo_habitacion||'')}</span>
+          </div>
+          ${fails.length?`<div class="tl-pills">${fails.slice(0,6).map(k=>`<span class="pill">${ITEMS[k]}</span>`).join('')}${fails.length>6?`<span class="pill">+${fails.length-6}</span>`:''}</div>`:''}
+          ${r.obs_mtto?`<div class="tl-obs">🔧 ${r.obs_mtto}</div>`:''}
+        </div>
+        <div class="tl-pct" style="color:${rColor}">${rPct!==null?rPct+'%':'–'}</div>
+      </div>`;
+  }).join('');
+
+  // Highlight selected card
+  document.querySelectorAll('.hab-card').forEach(c=>c.classList.remove('selected'));
+  document.querySelectorAll('.hab-card').forEach(c=>{
+    if(c.querySelector('.hab-num')?.textContent===habNum) c.classList.add('selected');
+  });
+}
+
+function closeHabDetail(){
+  document.getElementById('habDetail').classList.remove('open');
+  document.querySelectorAll('.hab-card').forEach(c=>c.classList.remove('selected'));
+}
 
 // ════════════════════════════════════════════
 //  UTILS
