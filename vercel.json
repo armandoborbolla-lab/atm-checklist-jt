@@ -4,6 +4,7 @@
     { "source": "/", "destination": "/checklist.html" },
     { "source": "/dashboard", "destination": "/dashboard.html" },
     { "source": "/import", "destination": "/import.html" },
-    { "source": "/cleanup", "destination": "/cleanup.html" }
+    { "source": "/cleanup", "destination": "/cleanup.html" },
+    { "source": "/import2", "destination": "/import2.html" }
   ]
 }
