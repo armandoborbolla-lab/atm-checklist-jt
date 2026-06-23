@@ -315,20 +315,20 @@ body{
     </div>
 
     <div class="field-grp">
-      <label class="field-lbl">🚪 Número de habitación</label>
-      <div class="sel-wrap">
-        <select class="field-sel" id="selHab">
-          <option value="">Selecciona habitación…</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="field-grp">
       <label class="field-lbl">🛏️ Tipo de habitación</label>
       <div class="tipo-grid">
         <button class="tipo-btn" data-tipo="sencilla" onclick="setTipo(this)">Sencilla</button>
         <button class="tipo-btn" data-tipo="plus" onclick="setTipo(this)">Plus</button>
         <button class="tipo-btn" data-tipo="suite" onclick="setTipo(this)">Suite</button>
+      </div>
+    </div>
+
+    <div class="field-grp" id="habGrp" style="display:none">
+      <label class="field-lbl">🚪 Número de habitación</label>
+      <div class="sel-wrap">
+        <select class="field-sel" id="selHab">
+          <option value="">Selecciona habitación…</option>
+        </select>
       </div>
     </div>
 
@@ -508,24 +508,7 @@ let S = {
     sel.appendChild(o);
   });
 
-  // Populate rooms
-  const hab = document.getElementById('selHab');
-  HABITACIONES.forEach(n=>{
-    const o = document.createElement('option');
-    o.value = n;
-    o.textContent = n;
-    hab.appendChild(o);
-  });
-
-  // Auto-set tipo when room is selected
-  hab.addEventListener('change', function(){
-    if(!this.value) return;
-    const tipo = getTipoHab(this.value);
-    S.tipo = tipo;
-    document.querySelectorAll('.tipo-btn').forEach(b=>{
-      b.classList.toggle('active', b.dataset.tipo === tipo);
-    });
-  });
+  // Rooms are populated dynamically when tipo is selected
 
   // Clock
   tickClock();
@@ -620,8 +603,21 @@ function buildSectionScreens(){
 // ═══════════════════════════════════════════
 function setTipo(btn){
   S.tipo = btn.dataset.tipo;
+  S.habitacion = '';
   document.querySelectorAll('.tipo-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
+
+  // Populate and show room dropdown filtered by tipo
+  const hab = document.getElementById('selHab');
+  hab.innerHTML = '<option value="">Selecciona habitación…</option>';
+  HABITACIONES.forEach(n=>{
+    if(getTipoHab(n) === S.tipo){
+      const o = document.createElement('option');
+      o.value = n; o.textContent = n;
+      hab.appendChild(o);
+    }
+  });
+  document.getElementById('habGrp').style.display = 'block';
 }
 
 function startChecklist(){
@@ -1068,7 +1064,8 @@ function newChecklist(){
 
   // Reset form values
   document.getElementById('selSup').value='';
-  document.getElementById('selHab').value='';
+  document.getElementById('selHab').innerHTML='<option value="">Selecciona habitación…</option>';
+  document.getElementById('habGrp').style.display='none';
   document.querySelectorAll('.tipo-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.tog').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.cmt-box').forEach(t=>{t.value='';t.classList.remove('show')});
