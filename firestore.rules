@@ -4,9 +4,7 @@ service cloud.firestore {
     match /revisiones/{docId} {
       allow create: if true;
       allow read: if true;
-      allow update: if false;
-      // Temporal: permitir delete para limpieza de datos erróneos
-      allow delete: if true;
+      allow update, delete: if false;
     }
   }
 }
