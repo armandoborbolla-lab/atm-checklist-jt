@@ -255,7 +255,7 @@ tr:hover td{background:#fafafa}
     </a>
   </nav>
   <div class="sb-footer">
-    <div class="sb-ver">v2.0 · Supabase</div>
+    <div class="sb-ver">v3.0 · Firebase</div>
   </div>
 </div>
 
@@ -287,15 +287,15 @@ tr:hover td{background:#fafafa}
 
   <!-- Content -->
   <div class="content">
-    <!-- Config banner (se oculta si Supabase está configurado) -->
+    <!-- Config banner (se oculta si Firebase está configurado) -->
     <div class="config-banner" id="configBanner">
       <div class="cb-icon">⚙️</div>
       <div>
-        <h3>Configura Supabase para ver datos reales</h3>
+        <h3>Sin conexión a Firebase</h3>
         <p>
-          Abre <code>dashboard.html</code> y <code>checklist.html</code> en un editor.<br>
-          Reemplaza <code>SUPABASE_URL</code> y <code>SUPABASE_KEY</code> con los valores de tu proyecto.<br>
-          Los encuentras en: <strong>Supabase → Settings → API</strong>
+          Verifica que el objeto <code>FIREBASE_CONFIG</code> en <code>dashboard.html</code> tenga
+          los valores correctos de tu proyecto.<br>
+          Los encuentras en: <strong>Firebase Console → Configuración del proyecto → Tus apps</strong>
         </p>
       </div>
     </div>
@@ -386,7 +386,10 @@ tr:hover td{background:#fafafa}
     <div id="view-config" style="display:none">
       <div style="max-width:640px">
         <div class="panel" style="margin-bottom:20px">
-          <div class="panel-title">👥 Usuarios del sistema</div>
+          <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between">
+            <span>👥 Usuarios del sistema</span>
+            <button class="refresh-btn" onclick="loadSupervisores(true)" style="font-size:12px;padding:6px 12px">↻ Actualizar</button>
+          </div>
           <div id="supList"><div style="color:var(--gray);font-size:13px;padding:16px 0">Cargando…</div></div>
 
           <div style="margin-top:18px;padding-top:18px;border-top:1px solid #f3f4f6">
@@ -477,9 +480,8 @@ if(FIREBASE_CONFIG){
 let allData  = [];
 let filtered = [];
 let period   = 0;   // días; 0 = todo
-let chartSec  = null;
-let chartSup  = null;
-let chartTend = null;
+let chartSec = null;
+let chartSup = null;
 
 const ITEMS = {
   'entrada_puerta':'Puerta limpia','entrada_chapa':'Chapa funcionando',
@@ -532,7 +534,12 @@ async function loadAll(){
 
     if(period > 0){
       const from = new Date();
-      from.setDate(from.getDate() - period);
+      if(period === 1){
+        from.setHours(0,0,0,0);                     // desde medianoche de hoy
+      } else {
+        from.setDate(from.getDate() - period);
+        from.setHours(0,0,0,0);                     // desde medianoche de hace N días
+      }
       q = q.where('created_at','>=', firebase.firestore.Timestamp.fromDate(from))
             .orderBy('created_at','desc');
     } else if(period === -1){
@@ -553,6 +560,7 @@ async function loadAll(){
     }
 
     const snap = await q.limit(1000).get();
+    const truncated = snap.size >= 1000;
     allData = snap.docs.map(d=>{
       const data = d.data();
       return { ...data, id: d.id,
@@ -568,7 +576,9 @@ async function loadAll(){
     populateFilters();
     showToast(allData.length===0
       ? '⚠️ Sin registros en ese período'
-      : `✓ ${allData.length} registros cargados`);
+      : truncated
+        ? `⚠️ Mostrando los primeros 1,000 de más registros`
+        : `✓ ${allData.length} registros cargados`);
   } catch(e){
     console.error(e);
     showToast('❌ Error: '+e.message);
@@ -676,47 +686,6 @@ function renderChartSupervisores(){
   });
 }
 
-function renderTendencia(){
-  // Group by week (Monday as start)
-  const weeks={};
-  allData.forEach(r=>{
-    const d=new Date(r.created_at);
-    const day=d.getDay()||7;
-    const mon=new Date(d); mon.setDate(d.getDate()-(day-1)); mon.setHours(0,0,0,0);
-    const key=mon.toISOString().slice(0,10);
-    if(!weeks[key]) weeks[key]={ok:0,total:0};
-    Object.keys(ITEMS).forEach(k=>{
-      const v=r[k];
-      if(v==='cumple'||v==='no_cumple'){weeks[key].total++;if(v==='cumple')weeks[key].ok++;}
-    });
-  });
-
-  const sorted=Object.entries(weeks).sort((a,b)=>a[0].localeCompare(b[0]));
-  const labels=sorted.map(([w])=>{
-    const d=new Date(w+'T12:00:00');
-    return d.getDate()+'/'+(d.getMonth()+1);
-  });
-  const pcts=sorted.map(([,v])=>v.total>0?Math.round(v.ok/v.total*100):null);
-
-  if(chartTend) chartTend.destroy();
-  chartTend=new Chart(document.getElementById('chartTendencia').getContext('2d'),{
-    type:'line',
-    data:{labels,datasets:[{
-      label:'Cumplimiento %',data:pcts,
-      borderColor:'#0f2f5e',backgroundColor:'rgba(15,47,94,0.08)',
-      tension:0.4,fill:true,pointBackgroundColor:'#0f2f5e',
-      pointRadius:4,pointHoverRadius:6,spanGaps:true
-    }]},
-    options:{
-      responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw+'%'}}},
-      scales:{
-        y:{min:50,max:100,ticks:{callback:v=>v+'%'},grid:{color:'#f3f4f6'}},
-        x:{grid:{display:false},ticks:{font:{size:11}}}
-      }
-    }
-  });
-}
 
 function renderHabProblemas(){
   const habFails={};
@@ -767,40 +736,6 @@ function renderIssues(){
     : '<div style="color:var(--gray);font-size:13px;padding:20px 0">Sin datos aún</div>';
 }
 
-// ════════════════════════════════════════════
-//  CUMPLIMIENTO POR SUPERVISOR
-// ════════════════════════════════════════════
-function renderSupCompliance(){
-  const stats={};
-  allData.forEach(r=>{
-    const name=shortName(r.supervisor);
-    if(!stats[name]) stats[name]={ok:0,total:0,count:0};
-    stats[name].count++;
-    Object.keys(ITEMS).forEach(k=>{
-      const v=r[k];
-      if(v==='cumple'||v==='no_cumple'){stats[name].total++;if(v==='cumple')stats[name].ok++;}
-    });
-  });
-
-  const sorted=Object.entries(stats)
-    .map(([name,s])=>({name,pct:s.total>0?Math.round(s.ok/s.total*100):0,count:s.count}))
-    .sort((a,b)=>b.pct-a.pct);
-
-  document.getElementById('supCompliance').innerHTML = sorted.length
-    ? sorted.map(s=>{
-        const cls=s.pct>=90?'pct-green':s.pct>=70?'pct-amber':'pct-red';
-        return `
-          <div class="sup-item">
-            <div class="sup-avatar">${s.name[0]||'?'}</div>
-            <div class="sup-info">
-              <div class="sup-name">${s.name}</div>
-              <div class="sup-meta">${s.count} revisión${s.count!==1?'es':''}</div>
-            </div>
-            <div class="sup-pct ${cls}">${s.pct}%</div>
-          </div>`;
-      }).join('')
-    : '<div style="color:var(--gray);font-size:13px;padding:20px 0">Sin datos aún</div>';
-}
 
 // ════════════════════════════════════════════
 //  BITÁCORA
@@ -868,7 +803,7 @@ function renderEmpty(){
   set('kpiTotal','–'); set('kpiCumpl','–'); set('kpiMtto','–'); set('kpiHabs','–');
   document.getElementById('topIssues').innerHTML='<div style="color:var(--gray);font-size:13px;padding:16px 0">Sin datos</div>';
   document.getElementById('habProblemas').innerHTML='<div style="color:var(--gray);font-size:13px;padding:16px 0">Sin datos</div>';
-  document.getElementById('bitacoraBody').innerHTML=`<tr><td colspan="7"><div class="empty-state"><div class="ei">⚙️</div>Configura Supabase para ver la bitácora</div></td></tr>`;
+  document.getElementById('bitacoraBody').innerHTML=`<tr><td colspan="7"><div class="empty-state"><div class="ei">⚙️</div>Sin conexión a Firebase</div></td></tr>`;
 }
 
 // ════════════════════════════════════════════
@@ -1059,12 +994,15 @@ function closeHabDetail(){
 //  CONFIGURACIÓN — SUPERVISORES
 // ════════════════════════════════════════════
 let supervisoresData = [];
+let supervisoresCargados = false;
 
-async function loadSupervisores(){
+async function loadSupervisores(force=false){
   if(!db) return;
+  if(supervisoresCargados && !force) return;
   try{
     const snap = await db.collection('supervisores').orderBy('nombre').get();
     supervisoresData = snap.docs.map(d=>({id:d.id,...d.data()}));
+    supervisoresCargados = true;
     renderSupList();
   } catch(e){ showToast('❌ Error cargando usuarios: '+e.message); }
 }
@@ -1076,22 +1014,23 @@ function renderSupList(){
     el.innerHTML='<div style="color:var(--gray);font-size:13px;padding:16px 0;text-align:center">Sin usuarios. Agrega el primero abajo.</div>';
     return;
   }
-  el.innerHTML = supervisoresData.map(s=>{
+  el.innerHTML = supervisoresData.map((s,i)=>{
     const inicial = (s.nombre||'?')[0].toUpperCase();
     const esJefe  = s.rol==='jefe_turno';
     const rolLbl  = esJefe ? 'Jefe de turno' : 'Supervisor';
     const rolStyle= esJefe ? 'background:#ede9fe;color:#6d28d9' : 'background:#dbeafe;color:#1d4ed8';
+    const nombreSafe = (s.nombre||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     return `
       <div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #f3f4f6">
         <div style="width:36px;height:36px;border-radius:50%;background:var(--navy);color:#fff;
           display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0">${inicial}</div>
         <div style="flex:1">
-          <div style="font-size:14px;font-weight:600;color:#1f2937">${s.nombre}</div>
+          <div style="font-size:14px;font-weight:600;color:#1f2937">${nombreSafe}</div>
         </div>
         <span class="badge" style="${rolStyle}">${rolLbl}</span>
-        <button onclick="deleteSupervisor('${s.id}','${s.nombre}')"
+        <button data-idx="${i}"
           style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:18px;padding:4px 8px;border-radius:6px"
-          title="Eliminar">🗑️</button>
+          title="Eliminar" onclick="deleteSupervisorByIdx(this.dataset.idx)">🗑️</button>
       </div>`;
   }).join('');
 }
@@ -1111,6 +1050,7 @@ async function addSupervisor(){
     });
     document.getElementById('newSupNombre').value='';
     showToast('✓ Usuario agregado');
+    supervisoresCargados = false;
     loadSupervisores();
   } catch(e){ showToast('❌ Error: '+e.message); }
 }
@@ -1120,8 +1060,14 @@ async function deleteSupervisor(id, nombre){
   try{
     await db.collection('supervisores').doc(id).delete();
     showToast('✓ Usuario eliminado');
+    supervisoresCargados = false;
     loadSupervisores();
   } catch(e){ showToast('❌ Error: '+e.message); }
+}
+
+function deleteSupervisorByIdx(idx){
+  const s = supervisoresData[parseInt(idx,10)];
+  if(s) deleteSupervisor(s.id, s.nombre);
 }
 
 // ════════════════════════════════════════════
@@ -1141,10 +1087,8 @@ function showToast(msg){
 
 function shortName(sup){
   if(!sup) return '–';
-  // Strip employee number prefix
-  const clean=sup.replace(/^\d+\s*-\s*/,'').replace(/\s*-\s*$/,'').trim();
-  const parts=clean.split(' ');
-  return parts[0]+' '+(parts[1]||'');
+  // Strip employee number prefix (e.g. "27136 - NANCY LAZARO GONZALEZ -")
+  return sup.replace(/^\d+\s*-\s*/,'').replace(/\s*-\s*$/,'').trim();
 }
 
 function capitalize(s){ return s?s[0].toUpperCase()+s.slice(1):s }
