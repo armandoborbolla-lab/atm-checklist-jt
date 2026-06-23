@@ -3,36 +3,112 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Limpieza de datos — ATM</title>
+<title>Admin — Limpieza de datos ATM</title>
 <style>
-  body{font-family:sans-serif;max-width:620px;margin:60px auto;padding:20px;background:#f5f5f5}
-  h1{color:#c5221f;margin-bottom:8px}
-  p{font-size:14px;color:#555;margin-bottom:16px;line-height:1.5}
-  .warn{background:#fff3cd;border:2px solid #ffc107;border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:13px;color:#856404}
-  button{background:#c5221f;color:#fff;border:none;padding:12px 28px;font-size:15px;border-radius:8px;cursor:pointer;margin-right:10px}
-  button:disabled{background:#aaa;cursor:not-allowed}
-  button.secondary{background:#1a73e8}
-  #preview{background:#fff;border-radius:10px;padding:16px;margin-bottom:20px;font-size:13px;font-family:monospace;max-height:300px;overflow-y:auto;border:1px solid #e0e0e0}
-  #log{background:#fff;border-radius:10px;padding:16px;font-size:13px;font-family:monospace;max-height:300px;overflow-y:auto}
-  .ok{color:#188038}.err{color:#c5221f}.info{color:#1a73e8}
-  progress{width:100%;height:10px;margin-top:10px;display:none}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:#eef2f7;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .card{background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.1);padding:32px;width:100%;max-width:520px}
+  h1{font-size:18px;font-weight:800;color:#0f2f5e;margin-bottom:4px}
+  .sub{font-size:13px;color:#6b7280;margin-bottom:24px}
+
+  /* Login */
+  #loginView label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;margin-top:14px}
+  #loginView input{width:100%;padding:10px 14px;border:2px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:inherit}
+  #loginView input:focus{outline:none;border-color:#0f2f5e}
+  .btn{display:inline-block;padding:11px 24px;border-radius:10px;border:none;font-size:14px;
+    font-weight:700;cursor:pointer;transition:all .2s;margin-top:6px}
+  .btn-primary{background:#0f2f5e;color:#fff;width:100%;margin-top:20px}
+  .btn-primary:hover{background:#1a4a8a}
+  .btn-primary:disabled{background:#aaa;cursor:not-allowed}
+  .btn-danger{background:#dc2626;color:#fff}
+  .btn-danger:disabled{background:#aaa;cursor:not-allowed}
+  .btn-secondary{background:#f3f4f6;color:#374151}
+  .err-msg{color:#dc2626;font-size:13px;margin-top:10px;display:none}
+
+  /* Main */
+  #mainView{display:none}
+  .user-bar{display:flex;align-items:center;justify-content:space-between;
+    background:#f0f5ff;border-radius:10px;padding:10px 14px;margin-bottom:20px}
+  .user-bar span{font-size:13px;color:#374151}
+  .user-bar strong{color:#0f2f5e}
+  .btn-signout{background:none;border:none;font-size:12px;color:#6b7280;cursor:pointer;text-decoration:underline}
+
+  .section{margin-bottom:24px}
+  .section h2{font-size:15px;font-weight:700;color:#0f2f5e;margin-bottom:8px}
+
+  .room-input-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .room-input-row input{padding:9px 12px;border:2px solid #e5e7eb;border-radius:10px;
+    font-size:14px;width:100px;font-family:inherit}
+  .room-input-row input:focus{outline:none;border-color:#0f2f5e}
+  .tag{display:inline-flex;align-items:center;gap:5px;background:#fee2e2;color:#dc2626;
+    border-radius:20px;padding:4px 12px;font-size:13px;font-weight:600}
+  .tag button{background:none;border:none;cursor:pointer;font-size:15px;color:#dc2626;line-height:1}
+
+  .warn-box{background:#fff3cd;border:2px solid #ffc107;border-radius:10px;
+    padding:12px 16px;font-size:13px;color:#856404;margin-bottom:14px}
+
+  #preview{background:#f8fafc;border-radius:10px;padding:14px;font-size:12px;
+    font-family:monospace;max-height:200px;overflow-y:auto;margin-bottom:14px;display:none;
+    white-space:pre-line;border:1px solid #e5e7eb}
+
+  .action-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  progress{width:100%;height:8px;margin-top:10px;border-radius:4px;display:none}
+
+  #log{margin-top:14px;background:#f8fafc;border-radius:10px;padding:12px;
+    font-size:12px;font-family:monospace;max-height:220px;overflow-y:auto;display:none;
+    border:1px solid #e5e7eb;white-space:pre-line}
+  .ok{color:#16a34a}.err-c{color:#dc2626}.inf{color:#1a73e8}
 </style>
 </head>
 <body>
-<h1>🧹 Limpieza de datos erróneos</h1>
-<p>Esta página elimina los registros con número de habitación <strong>1, 2 o 3</strong>, que fueron capturados por error operativo y no corresponden a habitaciones reales.</p>
 
-<div class="warn">⚠️ Esta acción es <strong>irreversible</strong>. Primero haz clic en <em>Vista previa</em> para confirmar qué se va a borrar.</div>
+<div class="card">
+  <h1>🛠️ Admin — Limpieza de datos</h1>
+  <p class="sub">Elimina registros con habitaciones incorrectas de Firestore</p>
 
-<button class="secondary" onclick="preview()">🔍 Vista previa</button>
-<button id="btnDelete" onclick="doDelete()" disabled>🗑️ Borrar registros</button>
+  <!-- LOGIN -->
+  <div id="loginView">
+    <label>Correo admin</label>
+    <input type="email" id="email" placeholder="admin@atm.com" autocomplete="username">
+    <label>Contraseña</label>
+    <input type="password" id="pass" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <div class="err-msg" id="loginErr">Correo o contraseña incorrectos</div>
+    <button class="btn btn-primary" id="btnLogin" onclick="doLogin()">Iniciar sesión</button>
+  </div>
 
-<progress id="prog"></progress>
+  <!-- MAIN (after login) -->
+  <div id="mainView">
+    <div class="user-bar">
+      <span>Sesión: <strong id="userEmail">–</strong></span>
+      <button class="btn-signout" onclick="doSignOut()">Cerrar sesión</button>
+    </div>
 
-<div id="preview" style="display:none"></div>
-<div id="log"></div>
+    <div class="section">
+      <h2>Habitaciones a eliminar</h2>
+      <div class="room-input-row">
+        <input type="text" id="roomInput" placeholder="Ej: 101" onkeydown="if(event.key==='Enter')addRoom()">
+        <button class="btn btn-secondary" onclick="addRoom()">+ Agregar</button>
+      </div>
+      <div id="roomTags" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
+      <p style="font-size:12px;color:#6b7280">Agrega los números de habitación que quieres eliminar, luego haz Vista previa.</p>
+    </div>
+
+    <div class="warn-box">⚠️ Los registros eliminados <strong>no se pueden recuperar</strong>. Verifica bien antes de borrar.</div>
+
+    <div id="preview"></div>
+
+    <div class="action-row">
+      <button class="btn btn-secondary" onclick="doPreview()">🔍 Vista previa</button>
+      <button class="btn btn-danger" id="btnDelete" onclick="doDelete()" disabled>🗑️ Eliminar registros</button>
+    </div>
+    <progress id="prog"></progress>
+    <div id="log"></div>
+  </div>
+</div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
 firebase.initializeApp({
@@ -43,73 +119,140 @@ firebase.initializeApp({
   messagingSenderId: "439849642095",
   appId: "1:439849642095:web:fdc7099bbdd2efd35c459a"
 });
-const db = firebase.firestore();
-const BAD_ROOMS = ['1','2','3'];
-let toDelete = [];
+const auth = firebase.auth();
+const db   = firebase.firestore();
 
-function log(msg, cls){
-  const el = document.getElementById('log');
-  const line = document.createElement('div');
-  if(cls) line.className = cls;
-  line.textContent = msg;
-  el.appendChild(line);
-  el.scrollTop = el.scrollHeight;
+let roomsToDelete = [];
+let docsToDelete  = [];
+
+// ── AUTH ──
+auth.onAuthStateChanged(user => {
+  if(user){
+    document.getElementById('loginView').style.display = 'none';
+    document.getElementById('mainView').style.display  = 'block';
+    document.getElementById('userEmail').textContent   = user.email;
+  } else {
+    document.getElementById('loginView').style.display = 'block';
+    document.getElementById('mainView').style.display  = 'none';
+  }
+});
+
+async function doLogin(){
+  const email = document.getElementById('email').value.trim();
+  const pass  = document.getElementById('pass').value;
+  const btn   = document.getElementById('btnLogin');
+  const errEl = document.getElementById('loginErr');
+  errEl.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Entrando…';
+  try {
+    await auth.signInWithEmailAndPassword(email, pass);
+  } catch(e) {
+    errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Iniciar sesión';
+  }
 }
 
-async function preview(){
-  document.getElementById('preview').style.display='block';
-  document.getElementById('preview').innerHTML='<span class="info">Buscando…</span>';
-  toDelete = [];
+function doSignOut(){ auth.signOut(); resetState(); }
 
-  for(const room of BAD_ROOMS){
+// ── ROOMS TAGS ──
+function addRoom(){
+  const input = document.getElementById('roomInput');
+  const val = input.value.trim();
+  if(!val) return;
+  if(!roomsToDelete.includes(val)) roomsToDelete.push(val);
+  input.value = '';
+  renderTags();
+  resetPreview();
+}
+
+function removeRoom(r){
+  roomsToDelete = roomsToDelete.filter(x=>x!==r);
+  renderTags();
+  resetPreview();
+}
+
+function renderTags(){
+  document.getElementById('roomTags').innerHTML = roomsToDelete.map(r=>
+    `<div class="tag">Hab ${r} <button onclick="removeRoom('${r}')">×</button></div>`
+  ).join('');
+}
+
+function resetPreview(){
+  document.getElementById('preview').style.display = 'none';
+  document.getElementById('preview').textContent   = '';
+  document.getElementById('btnDelete').disabled    = true;
+  document.getElementById('log').style.display     = 'none';
+  document.getElementById('log').innerHTML         = '';
+  docsToDelete = [];
+}
+
+function resetState(){ roomsToDelete=[]; renderTags(); resetPreview(); }
+
+// ── PREVIEW ──
+async function doPreview(){
+  if(!roomsToDelete.length){ alert('Agrega al menos un número de habitación.'); return; }
+  const pre = document.getElementById('preview');
+  pre.style.display = 'block';
+  pre.textContent = 'Buscando…';
+  docsToDelete = [];
+
+  for(const room of roomsToDelete){
     const snap = await db.collection('revisiones').where('habitacion','==',room).get();
     snap.docs.forEach(d=>{
       const data = d.data();
       const fecha = data.created_at?.toDate?.()?.toLocaleString('es-MX') || '–';
-      toDelete.push({ id: d.id, room, fecha, sup: data.supervisor });
+      docsToDelete.push({ id: d.id, room, fecha, sup: data.supervisor });
     });
   }
 
-  if(!toDelete.length){
-    document.getElementById('preview').innerHTML='<span class="ok">✓ No se encontraron registros con habitación 1, 2 o 3. ¡Ya están limpios!</span>';
+  if(!docsToDelete.length){
+    pre.textContent = '✓ No se encontraron registros con esas habitaciones. ¡Ya están limpios!';
     return;
   }
 
-  document.getElementById('preview').innerHTML =
-    `<strong>Se eliminarán ${toDelete.length} registro(s):</strong>\n\n` +
-    toDelete.map(r=>`• Hab ${r.room} — ${r.fecha} — ${r.sup}`).join('\n');
+  pre.textContent = `Se eliminarán ${docsToDelete.length} registro(s):\n\n` +
+    docsToDelete.map(r=>`• Hab ${r.room}  ${r.fecha}  ${r.sup}`).join('\n');
 
   document.getElementById('btnDelete').disabled = false;
 }
 
+// ── DELETE ──
 async function doDelete(){
-  if(!toDelete.length){ log('Nada que borrar.','info'); return; }
-  if(!confirm(`¿Confirmas borrar ${toDelete.length} registro(s) de habitaciones 1, 2 y 3?`)) return;
+  if(!docsToDelete.length) return;
+  if(!confirm(`¿Confirmas borrar ${docsToDelete.length} registro(s)?`)) return;
 
-  const btn = document.getElementById('btnDelete');
+  const btn  = document.getElementById('btnDelete');
   const prog = document.getElementById('prog');
+  const logEl= document.getElementById('log');
   btn.disabled = true;
-  prog.style.display='block';
-  prog.max = toDelete.length;
-  document.getElementById('log').innerHTML='';
+  prog.style.display = 'block'; prog.max = docsToDelete.length;
+  logEl.style.display = 'block'; logEl.innerHTML = '';
 
   let ok=0, fail=0;
-  for(let i=0; i<toDelete.length; i++){
-    const r = toDelete[i];
+  const addLog = (msg, cls) => {
+    const line = document.createElement('div');
+    line.className = cls||'';
+    line.textContent = msg;
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+  };
+
+  for(let i=0; i<docsToDelete.length; i++){
+    const r = docsToDelete[i];
     try{
       await db.collection('revisiones').doc(r.id).delete();
       ok++;
-      log(`✓ Eliminado: Hab ${r.room} — ${r.fecha}`, 'ok');
+      addLog(`✓ Eliminado: Hab ${r.room} — ${r.fecha}`, 'ok');
     } catch(e){
       fail++;
-      log(`✗ Error en ${r.id}: ${e.message}`, 'err');
+      addLog(`✗ Error: ${e.message}`, 'err-c');
     }
     prog.value = i+1;
   }
 
-  log(`\nListo: ${ok} eliminados, ${fail} errores.`, ok>0?'ok':'err');
+  addLog(`\nListo: ${ok} eliminados, ${fail} errores.`, ok>0?'ok':'err-c');
   btn.textContent = 'Completado';
-  toDelete = [];
+  docsToDelete = [];
 }
 </script>
 </body>
