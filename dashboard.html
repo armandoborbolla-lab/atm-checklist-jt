@@ -1004,7 +1004,13 @@ async function loadSupervisores(force=false){
     supervisoresData = snap.docs.map(d=>({id:d.id,...d.data()}));
     supervisoresCargados = true;
     renderSupList();
-  } catch(e){ showToast('❌ Error cargando usuarios: '+e.message); }
+  } catch(e){
+    const el = document.getElementById('supList');
+    if(el) el.innerHTML=`<div style="color:var(--red);font-size:13px;padding:16px 0">
+      ❌ Error al cargar usuarios: ${e.message}<br>
+      <span style="color:var(--gray);font-size:12px">Verifica que las reglas de Firestore permitan leer la colección <code>supervisores</code>.</span>
+    </div>`;
+  }
 }
 
 function renderSupList(){
