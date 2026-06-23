@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Limpieza de datos — ATM</title>
+<style>
+  body{font-family:sans-serif;max-width:620px;margin:60px auto;padding:20px;background:#f5f5f5}
+  h1{color:#c5221f;margin-bottom:8px}
+  p{font-size:14px;color:#555;margin-bottom:16px;line-height:1.5}
+  .warn{background:#fff3cd;border:2px solid #ffc107;border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:13px;color:#856404}
+  button{background:#c5221f;color:#fff;border:none;padding:12px 28px;font-size:15px;border-radius:8px;cursor:pointer;margin-right:10px}
+  button:disabled{background:#aaa;cursor:not-allowed}
+  button.secondary{background:#1a73e8}
+  #preview{background:#fff;border-radius:10px;padding:16px;margin-bottom:20px;font-size:13px;font-family:monospace;max-height:300px;overflow-y:auto;border:1px solid #e0e0e0}
+  #log{background:#fff;border-radius:10px;padding:16px;font-size:13px;font-family:monospace;max-height:300px;overflow-y:auto}
+  .ok{color:#188038}.err{color:#c5221f}.info{color:#1a73e8}
+  progress{width:100%;height:10px;margin-top:10px;display:none}
+</style>
+</head>
+<body>
+<h1>🧹 Limpieza de datos erróneos</h1>
+<p>Esta página elimina los registros con número de habitación <strong>1, 2 o 3</strong>, que fueron capturados por error operativo y no corresponden a habitaciones reales.</p>
+
+<div class="warn">⚠️ Esta acción es <strong>irreversible</strong>. Primero haz clic en <em>Vista previa</em> para confirmar qué se va a borrar.</div>
+
+<button class="secondary" onclick="preview()">🔍 Vista previa</button>
+<button id="btnDelete" onclick="doDelete()" disabled>🗑️ Borrar registros</button>
+
+<progress id="prog"></progress>
+
+<div id="preview" style="display:none"></div>
+<div id="log"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyBdL7HTAlTEqRY0bAUW2u0hz5WPWhIgC4s",
+  authDomain: "atm-checklist-jt.firebaseapp.com",
+  projectId: "atm-checklist-jt",
+  storageBucket: "atm-checklist-jt.firebasestorage.app",
+  messagingSenderId: "439849642095",
+  appId: "1:439849642095:web:fdc7099bbdd2efd35c459a"
+});
+const db = firebase.firestore();
+const BAD_ROOMS = ['1','2','3'];
+let toDelete = [];
+
+function log(msg, cls){
+  const el = document.getElementById('log');
+  const line = document.createElement('div');
+  if(cls) line.className = cls;
+  line.textContent = msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+async function preview(){
+  document.getElementById('preview').style.display='block';
+  document.getElementById('preview').innerHTML='<span class="info">Buscando…</span>';
+  toDelete = [];
+
+  for(const room of BAD_ROOMS){
+    const snap = await db.collection('revisiones').where('habitacion','==',room).get();
+    snap.docs.forEach(d=>{
+      const data = d.data();
+      const fecha = data.created_at?.toDate?.()?.toLocaleString('es-MX') || '–';
+      toDelete.push({ id: d.id, room, fecha, sup: data.supervisor });
+    });
+  }
+
+  if(!toDelete.length){
+    document.getElementById('preview').innerHTML='<span class="ok">✓ No se encontraron registros con habitación 1, 2 o 3. ¡Ya están limpios!</span>';
+    return;
+  }
+
+  document.getElementById('preview').innerHTML =
+    `<strong>Se eliminarán ${toDelete.length} registro(s):</strong>\n\n` +
+    toDelete.map(r=>`• Hab ${r.room} — ${r.fecha} — ${r.sup}`).join('\n');
+
+  document.getElementById('btnDelete').disabled = false;
+}
+
+async function doDelete(){
+  if(!toDelete.length){ log('Nada que borrar.','info'); return; }
+  if(!confirm(`¿Confirmas borrar ${toDelete.length} registro(s) de habitaciones 1, 2 y 3?`)) return;
+
+  const btn = document.getElementById('btnDelete');
+  const prog = document.getElementById('prog');
+  btn.disabled = true;
+  prog.style.display='block';
+  prog.max = toDelete.length;
+  document.getElementById('log').innerHTML='';
+
+  let ok=0, fail=0;
+  for(let i=0; i<toDelete.length; i++){
+    const r = toDelete[i];
+    try{
+      await db.collection('revisiones').doc(r.id).delete();
+      ok++;
+      log(`✓ Eliminado: Hab ${r.room} — ${r.fecha}`, 'ok');
+    } catch(e){
+      fail++;
+      log(`✗ Error en ${r.id}: ${e.message}`, 'err');
+    }
+    prog.value = i+1;
+  }
+
+  log(`\nListo: ${ok} eliminados, ${fail} errores.`, ok>0?'ok':'err');
+  btn.textContent = 'Completado';
+  toDelete = [];
+}
+</script>
+</body>
+</html>
