@@ -339,12 +339,6 @@ tr:hover td{background:#fafafa}
         </div>
       </div>
 
-      <!-- Tendencia semanal (full width) -->
-      <div class="chart-card" style="margin-bottom:24px">
-        <div class="chart-title">📈 Tendencia semanal de cumplimiento</div>
-        <div class="chart-wrap" style="height:200px"><canvas id="chartTendencia"></canvas></div>
-      </div>
-
       <!-- Bottom panels -->
       <div class="bottom-row">
         <div class="panel">
@@ -586,7 +580,6 @@ function renderKPIs(){
 function renderCharts(){
   renderChartSecciones();
   renderChartSupervisores();
-  renderTendencia();
 }
 
 function renderChartSecciones(){
