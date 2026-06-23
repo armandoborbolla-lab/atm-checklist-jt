@@ -205,9 +205,19 @@ tr:hover td{background:#fafafa}
         <button class="period-tab"        data-days="7"  onclick="setPeriod(this,7)">7 días</button>
         <button class="period-tab"        data-days="30" onclick="setPeriod(this,30)">30 días</button>
         <button class="period-tab"        data-days="0"  onclick="setPeriod(this,0)">Todo</button>
+        <button class="period-tab"        data-days="-1" onclick="setPeriod(this,-1)">Rango</button>
       </div>
       <button class="refresh-btn" onclick="loadAll()">↻ Actualizar</button>
     </div>
+  </div>
+
+  <!-- Range bar -->
+  <div id="rangeBar" style="display:none;background:#fff;border-bottom:1px solid #e5e7eb;padding:10px 28px;align-items:center;gap:10px;flex-wrap:wrap">
+    <span style="font-size:13px;font-weight:600;color:#374151">Desde:</span>
+    <input type="date" id="rangeFrom" class="filter-sel" style="width:150px">
+    <span style="font-size:13px;font-weight:600;color:#374151">Hasta:</span>
+    <input type="date" id="rangeTo" class="filter-sel" style="width:150px">
+    <button class="refresh-btn" onclick="applyRange()">Aplicar</button>
   </div>
 
   <!-- Content -->
@@ -398,6 +408,15 @@ async function loadAll(){
       const from = new Date();
       from.setDate(from.getDate() - period);
       q = q.where('created_at','>=', firebase.firestore.Timestamp.fromDate(from));
+    } else if(period === -1){
+      const fromVal=document.getElementById('rangeFrom').value;
+      const toVal=document.getElementById('rangeTo').value;
+      if(fromVal){
+        q=q.where('created_at','>=',firebase.firestore.Timestamp.fromDate(new Date(fromVal+'T00:00:00')));
+      }
+      if(toVal){
+        q=q.where('created_at','<=',firebase.firestore.Timestamp.fromDate(new Date(toVal+'T23:59:59')));
+      }
     }
 
     const snap = await q.limit(1000).get();
@@ -653,8 +672,21 @@ function setPeriod(btn,days){
   document.querySelectorAll('.period-tab').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   period=days;
-  loadAll();
+  const bar=document.getElementById('rangeBar');
+  if(days===-1){
+    bar.style.display='flex';
+    if(!document.getElementById('rangeFrom').value){
+      const d=new Date(); d.setDate(d.getDate()-30);
+      document.getElementById('rangeFrom').value=d.toISOString().split('T')[0];
+      document.getElementById('rangeTo').value=new Date().toISOString().split('T')[0];
+    }
+  } else {
+    bar.style.display='none';
+    loadAll();
+  }
 }
+
+function applyRange(){ loadAll(); }
 
 // ════════════════════════════════════════════
 //  UTILS
