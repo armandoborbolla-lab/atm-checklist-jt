@@ -531,21 +531,18 @@ async function loadSupFromFirestore(){
 (function init(){
   populateSupDropdown(SUPERVISORES);
   if(typeof db !== 'undefined' && db) loadSupFromFirestore();
-
-  tickClock();
-  setInterval(tickClock, 30000);
-  buildSectionScreens();
+  buildSectionScreens();   // siempre corre, independiente del reloj
+  try { tickClock(); } catch(e){ console.error('tickClock',e); }
+  setInterval(function(){ try{ tickClock(); }catch(e){} }, 30000);
 })();
 
+function pad(n){ return (n < 10 ? '0' : '') + n; }
+
 function tickClock(){
-  const now = new Date();
-  const dd  = String(now.getDate()).padStart(2,'0');
-  const mm  = String(now.getMonth()+1).padStart(2,'0');
-  const yyyy= now.getFullYear();
-  const hh  = String(now.getHours()).padStart(2,'0');
-  const min = String(now.getMinutes()).padStart(2,'0');
-  S.fecha = `${dd}/${mm}/${yyyy} ${hh}:${min}`;
-  const el = document.getElementById('fechaDisplay');
+  var now  = new Date();
+  S.fecha  = pad(now.getDate())+'/'+pad(now.getMonth()+1)+'/'+now.getFullYear()+
+             ' '+pad(now.getHours())+':'+pad(now.getMinutes());
+  var el = document.getElementById('fechaDisplay');
   if(el) el.textContent = S.fecha;
 }
 
