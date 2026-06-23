@@ -501,15 +501,37 @@ let S = {
 // ═══════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════
-(function init(){
-  // Populate supervisors
+function populateSupDropdown(list){
   const sel = document.getElementById('selSup');
-  SUPERVISORES.forEach(s=>{
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Selecciona tu nombre…</option>';
+  list.forEach(s=>{
     const o = document.createElement('option');
     o.value = s.val;
     o.textContent = s.label;
     sel.appendChild(o);
   });
+  if(current) sel.value = current;
+}
+
+async function loadSupFromFirestore(){
+  try{
+    const snap = await db.collection('supervisores').orderBy('nombre').get();
+    if(snap.empty){ populateSupDropdown(SUPERVISORES); return; }
+    const list = snap.docs.map(d=>{
+      const n = d.data().nombre || d.data().display || '';
+      return { val: n, label: n };
+    });
+    populateSupDropdown(list);
+  } catch(e){
+    populateSupDropdown(SUPERVISORES);
+  }
+}
+
+(function init(){
+  // Populate supervisors (fallback hardcoded, then overwrite from Firestore)
+  populateSupDropdown(SUPERVISORES);
+  if(typeof db !== 'undefined' && db) loadSupFromFirestore();
 
   // Rooms are populated dynamically when tipo is selected
 

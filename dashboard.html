@@ -247,6 +247,9 @@ tr:hover td{background:#fafafa}
     <button class="sb-item" onclick="showView('habitaciones')">
       <span class="icon">🚪</span> Por Habitación
     </button>
+    <button class="sb-item" onclick="showView('config')">
+      <span class="icon">⚙️</span> Configuración
+    </button>
     <a class="sb-item" href="checklist.html" target="_blank">
       <span class="icon">✏️</span> Ir al Checklist
     </a>
@@ -377,6 +380,35 @@ tr:hover td{background:#fafafa}
 
       <!-- Grid de habitaciones -->
       <div class="hab-grid" id="habGrid"></div>
+    </div>
+
+    <!-- ── VIEW: CONFIGURACIÓN ── -->
+    <div id="view-config" style="display:none">
+      <div style="max-width:640px">
+        <div class="panel" style="margin-bottom:20px">
+          <div class="panel-title">👥 Usuarios del sistema</div>
+          <div id="supList"><div style="color:var(--gray);font-size:13px;padding:16px 0">Cargando…</div></div>
+
+          <div style="margin-top:18px;padding-top:18px;border-top:1px solid #f3f4f6">
+            <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:12px">Agregar usuario</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+              <div style="flex:1;min-width:200px">
+                <label style="font-size:11px;color:var(--gray);display:block;margin-bottom:4px;font-weight:600">NOMBRE COMPLETO</label>
+                <input type="text" id="newSupNombre" class="filter-sel" style="width:100%;padding:10px 12px"
+                  placeholder="Ej: María García López" onkeydown="if(event.key==='Enter')addSupervisor()">
+              </div>
+              <div style="min-width:160px">
+                <label style="font-size:11px;color:var(--gray);display:block;margin-bottom:4px;font-weight:600">ROL</label>
+                <select id="newSupRol" class="filter-sel" style="width:100%;padding:10px 12px">
+                  <option value="supervisor">Supervisor</option>
+                  <option value="jefe_turno">Jefe de turno</option>
+                </select>
+              </div>
+              <button class="refresh-btn" onclick="addSupervisor()" style="padding:10px 18px">+ Agregar</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ── VIEW: BITÁCORA ── -->
@@ -846,16 +878,19 @@ function showView(view){
   document.getElementById('view-overview').style.display=view==='overview'?'block':'none';
   document.getElementById('view-bitacora').style.display=view==='bitacora'?'block':'none';
   document.getElementById('view-habitaciones').style.display=view==='habitaciones'?'block':'none';
+  document.getElementById('view-config').style.display=view==='config'?'block':'none';
   document.getElementById('periodTabs').style.display=view==='overview'?'flex':'none';
   document.getElementById('rangeBar').style.display=
     (view==='overview'&&period===-1)?'flex':'none';
-  const titles={overview:'📊 Indicadores',bitacora:'📋 Bitácora',habitaciones:'🚪 Por Habitación'};
+  const titles={overview:'📊 Indicadores',bitacora:'📋 Bitácora',habitaciones:'🚪 Por Habitación',config:'⚙️ Configuración'};
   document.getElementById('viewTitle').textContent=titles[view]||'';
   document.querySelectorAll('.sb-item').forEach((b,i)=>{
     b.classList.toggle('active',
-      (view==='overview'&&i===0)||(view==='bitacora'&&i===1)||(view==='habitaciones'&&i===2));
+      (view==='overview'&&i===0)||(view==='bitacora'&&i===1)||
+      (view==='habitaciones'&&i===2)||(view==='config'&&i===3));
   });
   if(view==='habitaciones') renderHabGrid();
+  if(view==='config') loadSupervisores();
 }
 
 function setPeriod(btn,days){
@@ -1018,6 +1053,75 @@ function openHabDetail(habNum){
 function closeHabDetail(){
   document.getElementById('habDetail').classList.remove('open');
   document.querySelectorAll('.hab-card').forEach(c=>c.classList.remove('selected'));
+}
+
+// ════════════════════════════════════════════
+//  CONFIGURACIÓN — SUPERVISORES
+// ════════════════════════════════════════════
+let supervisoresData = [];
+
+async function loadSupervisores(){
+  if(!db) return;
+  try{
+    const snap = await db.collection('supervisores').orderBy('nombre').get();
+    supervisoresData = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderSupList();
+  } catch(e){ showToast('❌ Error cargando usuarios: '+e.message); }
+}
+
+function renderSupList(){
+  const el = document.getElementById('supList');
+  if(!el) return;
+  if(!supervisoresData.length){
+    el.innerHTML='<div style="color:var(--gray);font-size:13px;padding:16px 0;text-align:center">Sin usuarios. Agrega el primero abajo.</div>';
+    return;
+  }
+  el.innerHTML = supervisoresData.map(s=>{
+    const inicial = (s.nombre||'?')[0].toUpperCase();
+    const esJefe  = s.rol==='jefe_turno';
+    const rolLbl  = esJefe ? 'Jefe de turno' : 'Supervisor';
+    const rolStyle= esJefe ? 'background:#ede9fe;color:#6d28d9' : 'background:#dbeafe;color:#1d4ed8';
+    return `
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #f3f4f6">
+        <div style="width:36px;height:36px;border-radius:50%;background:var(--navy);color:#fff;
+          display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0">${inicial}</div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600;color:#1f2937">${s.nombre}</div>
+        </div>
+        <span class="badge" style="${rolStyle}">${rolLbl}</span>
+        <button onclick="deleteSupervisor('${s.id}','${s.nombre}')"
+          style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:18px;padding:4px 8px;border-radius:6px"
+          title="Eliminar">🗑️</button>
+      </div>`;
+  }).join('');
+}
+
+async function addSupervisor(){
+  const nombre = document.getElementById('newSupNombre').value.trim();
+  const rol    = document.getElementById('newSupRol').value;
+  if(!nombre){ showToast('⚠️ Escribe el nombre del usuario'); return; }
+  if(!db){ showToast('❌ Sin conexión'); return; }
+  try{
+    await db.collection('supervisores').add({
+      nombre: nombre.toUpperCase(),
+      display: nombre,
+      rol,
+      activo: true,
+      creado: firebase.firestore.Timestamp.now()
+    });
+    document.getElementById('newSupNombre').value='';
+    showToast('✓ Usuario agregado');
+    loadSupervisores();
+  } catch(e){ showToast('❌ Error: '+e.message); }
+}
+
+async function deleteSupervisor(id, nombre){
+  if(!confirm(`¿Eliminar a ${nombre}?`)) return;
+  try{
+    await db.collection('supervisores').doc(id).delete();
+    showToast('✓ Usuario eliminado');
+    loadSupervisores();
+  } catch(e){ showToast('❌ Error: '+e.message); }
 }
 
 // ════════════════════════════════════════════
