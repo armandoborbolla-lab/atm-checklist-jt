@@ -974,8 +974,9 @@ async function submitForm(){
   hist.push(rec);
   localStorage.setItem('atm_checklist',JSON.stringify(hist.slice(-50)));
 
-  // Intentar envío: primero Apps Script, fallback local
-  const sent = await sendToBackend(rec);
+  // Intentar envío con timeout de 12s — si tarda más, guarda local y sigue
+  const timeout = new Promise(resolve => setTimeout(() => resolve(false), 12000));
+  const sent = await Promise.race([sendToBackend(rec), timeout]);
 
   // Show success
   hideAllScreens();
