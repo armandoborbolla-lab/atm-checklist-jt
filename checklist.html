@@ -518,14 +518,28 @@ function populateSupDropdown(list){
 
 async function loadSupFromFirestore(){
   try{
-    const snap = await db.collection('supervisores').orderBy('nombre').get();
+    // Forzar consulta al servidor, ignorar caché local
+    const snap = await db.collection('supervisores').orderBy('nombre').get({ source: 'server' });
     if(snap.empty){ populateSupDropdown(SUPERVISORES); return; }
     const list = snap.docs.map(d=>{
-      const n = d.data().nombre || d.data().display || '';
+      const n = (d.data().nombre || d.data().display || '').trim();
+      if(!n) return null;
       return { val: n, label: n };
-    });
-    populateSupDropdown(list);
+    }).filter(Boolean);
+    if(list.length) populateSupDropdown(list);
+    else populateSupDropdown(SUPERVISORES);
   } catch(e){
+    // Si falla el servidor (sin internet), intentar desde caché
+    try{
+      const snap2 = await db.collection('supervisores').orderBy('nombre').get({ source: 'cache' });
+      if(!snap2.empty){
+        const list2 = snap2.docs.map(d=>{
+          const n = (d.data().nombre || '').trim();
+          return n ? { val: n, label: n } : null;
+        }).filter(Boolean);
+        if(list2.length){ populateSupDropdown(list2); return; }
+      }
+    } catch(e2){}
     populateSupDropdown(SUPERVISORES);
   }
 }
