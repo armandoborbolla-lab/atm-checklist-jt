@@ -532,8 +532,7 @@ async function loadSupFromFirestore(){
 
 (function init(){
   populateSupDropdown(SUPERVISORES);
-  if(typeof db !== 'undefined' && db) loadSupFromFirestore();
-  buildSectionScreens();   // siempre corre, independiente del reloj
+  buildSectionScreens();
   try { tickClock(); } catch(e){ console.error('tickClock',e); }
   setInterval(function(){ try{ tickClock(); }catch(e){} }, 30000);
 })();
@@ -1003,6 +1002,7 @@ let db = null;
 if(FIREBASE_CONFIG){
   firebase.initializeApp(FIREBASE_CONFIG);
   db = firebase.firestore();
+  loadSupFromFirestore();
 }
 
 function fv(sec, item){
