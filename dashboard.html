@@ -342,6 +342,12 @@ tr:hover td{background:#fafafa}
         </div>
       </div>
 
+      <!-- Día de la semana -->
+      <div class="chart-card" style="margin-bottom:24px">
+        <div class="chart-title">📅 Checklist por día de la semana</div>
+        <div class="chart-wrap" style="height:200px"><canvas id="chartDiaSemana"></canvas></div>
+      </div>
+
       <!-- Bottom panels -->
       <div class="bottom-row">
         <div class="panel">
@@ -480,6 +486,7 @@ let filtered = [];
 let period   = 0;   // días; 0 = todo
 let chartSec = null;
 let chartSup = null;
+let chartDia = null;
 
 const ITEMS = {
   'entrada_puerta':'Puerta limpia','entrada_chapa':'Chapa funcionando',
@@ -620,6 +627,38 @@ function renderKPIs(){
 function renderCharts(){
   renderChartSecciones();
   renderChartSupervisores();
+  renderChartDiaSemana();
+}
+
+function renderChartDiaSemana(){
+  const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const counts = [0,0,0,0,0,0,0];
+  allData.forEach(r=>{
+    const d = new Date(r.created_at);
+    if(!isNaN(d)) counts[d.getDay()]++;
+  });
+  const max = Math.max(...counts);
+  const colors = counts.map(c=> c===max ? 'rgba(15,47,94,0.9)' : 'rgba(15,47,94,0.35)');
+
+  if(chartDia) chartDia.destroy();
+  chartDia = new Chart(document.getElementById('chartDiaSemana').getContext('2d'),{
+    type:'bar',
+    data:{
+      labels: DIAS,
+      datasets:[{ data:counts, backgroundColor:colors, borderRadius:8, borderSkipped:false }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>' '+ctx.parsed.y+' checklist'+(ctx.parsed.y!==1?'s':'')}}
+      },
+      scales:{
+        x:{grid:{display:false}, ticks:{font:{size:12}}},
+        y:{beginAtZero:true, ticks:{stepSize:1}, grid:{color:'#f0f0f0'}}
+      }
+    }
+  });
 }
 
 function renderChartSecciones(){
