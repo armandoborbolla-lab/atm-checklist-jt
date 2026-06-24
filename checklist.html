@@ -956,11 +956,11 @@ function buildSummary(){
 // ═══════════════════════════════════════════
 //  SUBMIT
 // ═══════════════════════════════════════════
-async function submitForm(){
+function submitForm(){
   const btn=document.querySelector('#nav .btn-g');
-  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Enviando…'; }
+  if(btn){ btn.disabled=true; }
 
-  // Save to localStorage as backup
+  // Guardar en localStorage inmediatamente
   const rec={
     ts:new Date().toISOString(),
     supervisor:S.supervisor,
@@ -974,21 +974,15 @@ async function submitForm(){
   hist.push(rec);
   localStorage.setItem('atm_checklist',JSON.stringify(hist.slice(-50)));
 
-  // Intentar envío con timeout de 12s — si tarda más, guarda local y sigue
-  const timeout = new Promise(resolve => setTimeout(() => resolve(false), 12000));
-  const sent = await Promise.race([sendToBackend(rec), timeout]);
-
-  // Show success
+  // Mostrar pantalla de éxito de inmediato — sin esperar a Firestore
   hideAllScreens();
   document.getElementById('s-success').classList.add('active');
-  if(!sent){
-    document.querySelector('.success-sub').innerHTML=
-      'Guardado localmente en el dispositivo.<br>' +
-      '<small style="color:#f59e0b">Sin conexión — se sincronizará cuando haya internet.</small>';
-  }
   document.getElementById('header').style.display='none';
   const nav=document.getElementById('nav');
   if(nav) nav.innerHTML='';
+
+  // Enviar a Firestore en segundo plano (no bloquea la UI)
+  sendToBackend(rec).catch(function(e){ console.error('Firestore send error:', e); });
 }
 
 // ─────────────────────────────────────────
