@@ -518,29 +518,15 @@ function populateSupDropdown(list){
 
 async function loadSupFromFirestore(){
   try{
-    // Forzar consulta al servidor, ignorar caché local
-    const snap = await db.collection('supervisores').orderBy('nombre').get({ source: 'server' });
-    if(snap.empty){ populateSupDropdown(SUPERVISORES); return; }
+    const snap = await db.collection('supervisores').orderBy('nombre').get();
+    if(snap.empty){ return; }
     const list = snap.docs.map(d=>{
-      const n = (d.data().nombre || d.data().display || '').trim();
-      if(!n) return null;
-      return { val: n, label: n };
+      const n = (d.data().nombre || '').trim();
+      return n ? { val: n, label: n } : null;
     }).filter(Boolean);
     if(list.length) populateSupDropdown(list);
-    else populateSupDropdown(SUPERVISORES);
   } catch(e){
-    // Si falla el servidor (sin internet), intentar desde caché
-    try{
-      const snap2 = await db.collection('supervisores').orderBy('nombre').get({ source: 'cache' });
-      if(!snap2.empty){
-        const list2 = snap2.docs.map(d=>{
-          const n = (d.data().nombre || '').trim();
-          return n ? { val: n, label: n } : null;
-        }).filter(Boolean);
-        if(list2.length){ populateSupDropdown(list2); return; }
-      }
-    } catch(e2){}
-    populateSupDropdown(SUPERVISORES);
+    console.warn('No se pudo cargar supervisores de Firestore:', e.message);
   }
 }
 
@@ -1017,12 +1003,6 @@ let db = null;
 if(FIREBASE_CONFIG){
   firebase.initializeApp(FIREBASE_CONFIG);
   db = firebase.firestore();
-  // Persistencia offline: writes van a caché local al instante y sincronizan en segundo plano
-  db.enablePersistence({ synchronizeTabs: false })
-    .catch(function(e){
-      // FAILED_PRECONDITION = múltiples tabs; UNIMPLEMENTED = browser no soporta
-      console.warn('Offline persistence no disponible:', e.code);
-    });
 }
 
 function fv(sec, item){
