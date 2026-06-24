@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#0f2f5e">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -672,9 +675,20 @@ function showSection(idx){
   S.curSection = idx;
   S.curScreen  = 'section';
 
-  document.getElementById(`s-sec-${idx}`).classList.add('active');
-  updateConditional();
-  updateProgress();
+  var screen = document.getElementById('s-sec-' + idx);
+  if(!screen){
+    // Secciones no generadas aún — reconstruir y reintentar
+    buildSectionScreens();
+    screen = document.getElementById('s-sec-' + idx);
+  }
+  if(!screen){
+    showToast('❌ Error: recarga la página (Ctrl+Shift+R)');
+    document.getElementById('header').style.display = 'none';
+    return;
+  }
+  screen.classList.add('active');
+  try{ updateConditional(); }catch(e){ console.error('updateConditional:', e); }
+  try{ updateProgress(); }catch(e){ console.error('updateProgress:', e); }
   renderNav(idx);
   window.scrollTo(0,0);
 }
