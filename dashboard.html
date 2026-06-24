@@ -391,6 +391,11 @@ tr:hover td{background:#fafafa}
             <button class="refresh-btn" onclick="loadSupervisores(true)" style="font-size:12px;padding:6px 12px">↻ Actualizar</button>
           </div>
           <div id="supList"><div style="color:var(--gray);font-size:13px;padding:16px 0">Cargando…</div></div>
+          <div id="seedBtnWrap" style="display:none;margin-top:10px">
+            <button class="refresh-btn" onclick="seedSupervisores()" style="width:100%;background:var(--green);padding:10px">
+              ⬇ Cargar supervisores predeterminados
+            </button>
+          </div>
 
           <div style="margin-top:18px;padding-top:18px;border-top:1px solid #f3f4f6">
             <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:12px">Agregar usuario</div>
@@ -1003,13 +1008,41 @@ async function loadSupervisores(force=false){
   }
 }
 
+const SUPERVISORES_DEFAULT = [
+  'NORMA GUADALUPE TORRES ZAPATA',
+  'DIANA LAURA HERRERA HERNANDEZ',
+  'MARGOT HERNANDEZ RIOS',
+  'MARTIN OSVALDO LUQUE PIÑA',
+  'RICARDO ORTIZ LOPEZ',
+];
+
+async function seedSupervisores(){
+  if(!db) return;
+  const btn = document.querySelector('#seedBtnWrap button');
+  if(btn){ btn.disabled=true; btn.textContent='Cargando…'; }
+  try{
+    for(const nombre of SUPERVISORES_DEFAULT){
+      await db.collection('supervisores').add({ nombre, activo:true, creado: firebase.firestore.Timestamp.now() });
+    }
+    showToast('✓ Supervisores cargados');
+    supervisoresCargados = false;
+    loadSupervisores(true);
+  } catch(e){
+    showToast('❌ Error: '+e.message);
+    if(btn){ btn.disabled=false; btn.textContent='⬇ Cargar supervisores predeterminados'; }
+  }
+}
+
 function renderSupList(){
   const el = document.getElementById('supList');
   if(!el) return;
+  const wrap = document.getElementById('seedBtnWrap');
   if(!supervisoresData.length){
     el.innerHTML='<div style="color:var(--gray);font-size:13px;padding:16px 0;text-align:center">Sin usuarios. Agrega el primero abajo.</div>';
+    if(wrap) wrap.style.display='block';
     return;
   }
+  if(wrap) wrap.style.display='none';
   el.innerHTML = supervisoresData.map((s,i)=>{
     const inicial   = (s.nombre||'?')[0].toUpperCase();
     const nombreSafe= (s.nombre||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
