@@ -413,9 +413,8 @@ tr:hover td{background:#fafafa}
     <div id="view-bitacora" style="display:none">
       <div class="section-title">📋 Bitácora de revisiones</div>
       <div class="filters-row">
-        <select class="filter-sel" id="filtSup" onchange="applyFilters()">
-          <option value="">Todos los supervisores</option>
-        </select>
+        <input type="text" class="filter-sel" id="filtSup" placeholder="Buscar supervisor…"
+          oninput="applyFilters()" style="min-width:200px">
         <select class="filter-sel" id="filtResultado" onchange="applyFilters()">
           <option value="">Todos los resultados</option>
           <option value="lista">✅ Lista para venta</option>
@@ -429,6 +428,9 @@ tr:hover td{background:#fafafa}
         </select>
         <input type="text" class="filter-sel" id="filtHab" placeholder="Habitación…"
           oninput="applyFilters()" style="width:120px">
+        <input type="date" class="filter-sel" id="filtDesde" onchange="applyFilters()" title="Desde">
+        <input type="date" class="filter-sel" id="filtHasta" onchange="applyFilters()" title="Hasta">
+        <button class="refresh-btn" onclick="limpiarFiltrosBitacora()" style="font-size:12px;padding:6px 12px;background:var(--gray)">✕ Limpiar</button>
       </div>
       <div class="table-wrap">
         <table>
@@ -735,22 +737,20 @@ function renderIssues(){
 // ════════════════════════════════════════════
 //  BITÁCORA
 // ════════════════════════════════════════════
-function populateFilters(){
-  const sups=[...new Set(allData.map(r=>shortName(r.supervisor)))].sort();
-  const sel=document.getElementById('filtSup');
-  const cur=sel.value;
-  sel.innerHTML='<option value="">Todos los supervisores</option>'+
-    sups.map(s=>`<option value="${s}"${s===cur?'selected':''}>${s}</option>`).join('');
-}
+function populateFilters(){ /* supervisor ahora es texto libre, no requiere populate */ }
 
 function applyFilters(){
-  const sup=document.getElementById('filtSup').value;
-  const res=document.getElementById('filtResultado').value;
-  const tipo=document.getElementById('filtTipo').value;
-  const hab=document.getElementById('filtHab').value.trim().toLowerCase();
+  const sup   = document.getElementById('filtSup').value.trim().toLowerCase();
+  const res   = document.getElementById('filtResultado').value;
+  const tipo  = document.getElementById('filtTipo').value;
+  const hab   = document.getElementById('filtHab').value.trim().toLowerCase();
+  const desde = document.getElementById('filtDesde').value;
+  const hasta = document.getElementById('filtHasta').value;
+  const desdeTs = desde ? new Date(desde+'T00:00:00').getTime() : null;
+  const hastaTs = hasta ? new Date(hasta+'T23:59:59').getTime() : null;
 
   filtered=allData.filter(r=>{
-    if(sup && shortName(r.supervisor)!==sup) return false;
+    if(sup && !shortName(r.supervisor).toLowerCase().includes(sup)) return false;
     if(res){
       const isMtto=r.resultado?.toLowerCase().includes('mtto')||r.resultado?.toLowerCase().includes('corrección');
       if(res==='lista'&&isMtto) return false;
@@ -758,9 +758,22 @@ function applyFilters(){
     }
     if(tipo && r.tipo_habitacion!==tipo) return false;
     if(hab && !String(r.habitacion).toLowerCase().includes(hab)) return false;
+    if(desdeTs && new Date(r.created_at).getTime() < desdeTs) return false;
+    if(hastaTs && new Date(r.created_at).getTime() > hastaTs) return false;
     return true;
   });
 
+  renderBitacora();
+}
+
+function limpiarFiltrosBitacora(){
+  document.getElementById('filtSup').value='';
+  document.getElementById('filtResultado').value='';
+  document.getElementById('filtTipo').value='';
+  document.getElementById('filtHab').value='';
+  document.getElementById('filtDesde').value='';
+  document.getElementById('filtHasta').value='';
+  filtered=[...allData];
   renderBitacora();
 }
 
