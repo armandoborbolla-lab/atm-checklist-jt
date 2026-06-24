@@ -428,8 +428,9 @@ tr:hover td{background:#fafafa}
         </select>
         <input type="text" class="filter-sel" id="filtHab" placeholder="Habitación…"
           oninput="applyFilters()" style="width:120px">
-        <input type="date" class="filter-sel" id="filtDesde" onchange="applyFilters()" title="Desde">
-        <input type="date" class="filter-sel" id="filtHasta" onchange="applyFilters()" title="Hasta">
+        <input type="date" class="filter-sel" id="filtDesde" title="Desde" onkeydown="if(event.key==='Enter')consultarBitacora()">
+        <input type="date" class="filter-sel" id="filtHasta" title="Hasta" onkeydown="if(event.key==='Enter')consultarBitacora()">
+        <button class="refresh-btn" onclick="consultarBitacora()" style="padding:6px 16px">🔍 Consultar</button>
         <button class="refresh-btn" onclick="limpiarFiltrosBitacora()" style="font-size:12px;padding:6px 12px;background:var(--gray)">✕ Limpiar</button>
       </div>
       <div class="table-wrap">
@@ -739,17 +740,17 @@ function renderIssues(){
 // ════════════════════════════════════════════
 function populateFilters(){ /* supervisor ahora es texto libre, no requiere populate */ }
 
-function applyFilters(){
-  const sup   = document.getElementById('filtSup').value.trim().toLowerCase();
-  const res   = document.getElementById('filtResultado').value;
-  const tipo  = document.getElementById('filtTipo').value;
-  const hab   = document.getElementById('filtHab').value.trim().toLowerCase();
-  const desde = document.getElementById('filtDesde').value;
-  const hasta = document.getElementById('filtHasta').value;
-  const desdeTs = desde ? new Date(desde+'T00:00:00').getTime() : null;
-  const hastaTs = hasta ? new Date(hasta+'T23:59:59').getTime() : null;
+// Base de datos local para la bitácora (puede ser allData o resultado de consulta por fechas)
+let bitacoraBase = [];
 
-  filtered=allData.filter(r=>{
+function applyFilters(){
+  const sup  = document.getElementById('filtSup').value.trim().toLowerCase();
+  const res  = document.getElementById('filtResultado').value;
+  const tipo = document.getElementById('filtTipo').value;
+  const hab  = document.getElementById('filtHab').value.trim().toLowerCase();
+  const base = bitacoraBase.length ? bitacoraBase : allData;
+
+  filtered = base.filter(r=>{
     if(sup && !shortName(r.supervisor).toLowerCase().includes(sup)) return false;
     if(res){
       const isMtto=r.resultado?.toLowerCase().includes('mtto')||r.resultado?.toLowerCase().includes('corrección');
@@ -758,12 +759,36 @@ function applyFilters(){
     }
     if(tipo && r.tipo_habitacion!==tipo) return false;
     if(hab && !String(r.habitacion).toLowerCase().includes(hab)) return false;
-    if(desdeTs && new Date(r.created_at).getTime() < desdeTs) return false;
-    if(hastaTs && new Date(r.created_at).getTime() > hastaTs) return false;
     return true;
   });
 
   renderBitacora();
+}
+
+async function consultarBitacora(){
+  const desde = document.getElementById('filtDesde').value;
+  const hasta = document.getElementById('filtHasta').value;
+  if(!desde && !hasta){ applyFilters(); return; }
+  if(!db) return;
+
+  const btn = document.querySelector('#view-bitacora .refresh-btn');
+  const label = btn ? btn.textContent : '';
+  if(btn){ btn.disabled=true; btn.textContent='Consultando…'; }
+
+  try{
+    let q = db.collection('revisiones');
+    if(desde) q = q.where('created_at','>=', firebase.firestore.Timestamp.fromDate(new Date(desde+'T00:00:00')));
+    if(hasta) q = q.where('created_at','<=', firebase.firestore.Timestamp.fromDate(new Date(hasta+'T23:59:59')));
+    q = q.orderBy('created_at','desc');
+    const snap = await q.limit(1000).get();
+    bitacoraBase = snap.docs.map(d=>({id:d.id,...d.data()}));
+    applyFilters();
+    showToast(`${bitacoraBase.length} registros encontrados`);
+  } catch(e){
+    showToast('❌ Error: '+e.message);
+  } finally {
+    if(btn){ btn.disabled=false; btn.textContent='🔍 Consultar'; }
+  }
 }
 
 function limpiarFiltrosBitacora(){
@@ -773,6 +798,7 @@ function limpiarFiltrosBitacora(){
   document.getElementById('filtHab').value='';
   document.getElementById('filtDesde').value='';
   document.getElementById('filtHasta').value='';
+  bitacoraBase=[];
   filtered=[...allData];
   renderBitacora();
 }
