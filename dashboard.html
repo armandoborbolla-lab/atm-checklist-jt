@@ -922,7 +922,7 @@ function filterHabs(){
   habFilter = (document.getElementById('habSearch').value||'').trim().toLowerCase();
   const rooms = Object.keys(habData)
     .filter(h=>!habFilter||h.includes(habFilter))
-    .sort((a,b)=>habData[b].length-habData[a].length); // más revisadas primero
+    .sort((a,b)=>parseInt(a)-parseInt(b)); // por número de habitación
 
   document.getElementById('habCount').textContent = rooms.length+' habitación'+(rooms.length!==1?'es':'');
 
