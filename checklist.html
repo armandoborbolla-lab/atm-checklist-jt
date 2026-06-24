@@ -1004,6 +1004,12 @@ let db = null;
 if(FIREBASE_CONFIG){
   firebase.initializeApp(FIREBASE_CONFIG);
   db = firebase.firestore();
+  // Persistencia offline: writes van a caché local al instante y sincronizan en segundo plano
+  db.enablePersistence({ synchronizeTabs: false })
+    .catch(function(e){
+      // FAILED_PRECONDITION = múltiples tabs; UNIMPLEMENTED = browser no soporta
+      console.warn('Offline persistence no disponible:', e.code);
+    });
 }
 
 function fv(sec, item){
