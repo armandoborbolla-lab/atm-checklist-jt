@@ -891,6 +891,14 @@ function applyRange(){ loadAll(); }
 let habData = {};   // { "101": [rev, rev, …], … }
 let habFilter = '';
 
+const HAB_SUITES = new Set(['129','130','131','132','181','182','183','184']);
+const HAB_PLUS   = new Set(['101','102','103','104','105','106','107','108','109','110',
+  '111','112','113','114','117','118','119','142','143','144','145','146','147','148',
+  '149','150','151','152','153','154','155','156','157','158','159','160','161','162',
+  '163','164','165','166','167','168','169','170','171','172','173','174','175','176',
+  '177','178','179','180','199','252','253','254','255','278']);
+function getTipoHab(h){ const s=String(h); if(HAB_SUITES.has(s)) return 'Suite'; if(HAB_PLUS.has(s)) return 'Plus'; return 'Sencilla'; }
+
 function buildHabData(){
   habData = {};
   allData.forEach(r=>{
@@ -942,12 +950,10 @@ function filterHabs(){
     const lastSup = shortName(last.supervisor);
     const isMtto = last.resultado?.toLowerCase().includes('mtto')||last.resultado?.toLowerCase().includes('corrección');
     const accentColor = isMtto?'var(--red)':pct>=90?'var(--green)':pct>=70?'var(--amber)':'var(--navy)';
-    const tipos = [...new Set(revs.map(r=>r.tipo_habitacion).filter(Boolean))];
-
     return `
       <div class="hab-card" style="--accent:${accentColor}" onclick="openHabDetail('${h}')">
         <div class="hab-num">${h}</div>
-        <div class="hab-tipo">${tipos.join(' / ')||'–'}</div>
+        <div class="hab-tipo">${getTipoHab(h)}</div>
         <div class="hab-stat">
           <span class="hab-stat-label">Revisiones</span>
           <span class="hab-stat-val">${count}</span>
